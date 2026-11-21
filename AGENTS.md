@@ -169,7 +169,7 @@ Vite+ is distinct from Vite itself; it invokes Vite internally for commands like
 1. Install dependencies: `vp install`
 2. Build the library: `vp run build` (or `vp pack`)
 3. Run format, lint, and type checks: `vp check`
-4. Run tests: `vp test` (or `vp test --dir tests` as used in CI). To run only a specific test file: `vp test tests/btc.test.ts`
+4. Run tests: `vp test`. To run only a specific test file: `vp test tests/btc.test.ts`
 
 ## Code style and conventions
 

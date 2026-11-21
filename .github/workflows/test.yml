@@ -34,4 +34,13 @@ jobs:
         run: vp check
 
       - name: Run tests
-        run: vp test --dir tests
+        run: vp test
+
+      - name: Build package
+        run: vp run build
+
+      - name: Smoke test package output
+        run: vp run smoke
+
+      - name: Verify generated exports are committed
+        run: git diff --exit-code -- package.json

@@ -193,6 +193,7 @@
     "build": "vp run prebuild && vp pack",
     "dev": "vp pack --watch",
     "test": "vp test",
+    "smoke": "node scripts/smokeDist.mjs",
     "check": "vp check",
     "prepublishOnly": "vp run build",
     "prepare": "vp config"
