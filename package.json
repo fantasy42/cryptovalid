@@ -189,9 +189,9 @@
     "access": "public"
   },
   "scripts": {
-    "prebuild": "node --experimental-strip-types scripts/generateExports.ts",
-    "build": "vp run prebuild && vp pack",
-    "dev": "vp pack --watch",
+    "gen:exports": "vpx scripts/generateExports.ts",
+    "build": "vp run gen:exports && vp pack",
+    "dev": "vp run gen:exports && vp pack --watch",
     "test": "vp test",
     "smoke": "node scripts/smokeDist.mjs",
     "check": "vp check",
