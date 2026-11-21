@@ -5,7 +5,8 @@ import {fileURLToPath} from 'node:url';
 import {readFile} from 'node:fs/promises';
 import {describe, expect, it} from 'vite-plus/test';
 
-import {buildExports, conditions, getModules} from './buildExports.ts';
+import {buildExports, conditions, entrySubpath} from './buildExports.ts';
+import {ENTRIES} from './entries.ts';
 
 const rootDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -31,29 +32,21 @@ function asConditional(
   return target;
 }
 
-describe('getModules', () => {
-  it('returns sorted module names', async () => {
-    const modules = await getModules(rootDir, 'chains');
-
-    expect(modules.length).toBeGreaterThan(0);
-    expect(modules).toContain('btc');
-    expect(modules).toEqual([...modules].sort());
+describe('entrySubpath', () => {
+  it('maps the root entry to .', () => {
+    expect(entrySubpath('index')).toBe('.');
   });
 
-  it('treats a missing directory as empty', async () => {
-    await expect(getModules(rootDir, 'missing')).resolves.toEqual([]);
-  });
-
-  it('propagates non-ENOENT filesystem errors', async () => {
-    await expect(getModules(rootDir, 'index.ts')).rejects.toMatchObject({
-      code: 'ENOTDIR',
-    });
+  it('maps every other entry to a subpath', () => {
+    expect(entrySubpath('any')).toBe('./any');
+    expect(entrySubpath('btc')).toBe('./btc');
+    expect(entrySubpath('usdt-erc20')).toBe('./usdt-erc20');
   });
 });
 
 describe('buildExports', () => {
   it('places types before default in every condition', () => {
-    const exportsMap = buildExports(['btc', 'eth', 'usdt-erc20']);
+    const exportsMap = buildExports(['index', 'any', 'btc', 'usdt-erc20']);
 
     for (const [subpath, target] of Object.entries(exportsMap)) {
       if (subpath === './package.json') {
@@ -68,7 +61,7 @@ describe('buildExports', () => {
   });
 
   it('maps every entry to the expected dist files', () => {
-    const exportsMap = buildExports(['btc', 'usdt-erc20']);
+    const exportsMap = buildExports(['index', 'any', 'btc', 'usdt-erc20']);
 
     expect(exportsMap).toEqual({
       '.': {
@@ -97,8 +90,25 @@ describe('buildExports', () => {
     });
   });
 
+  it('returns only the package.json export when there are no entries', () => {
+    expect(buildExports([])).toEqual({'./package.json': './package.json'});
+  });
+
+  it('does not emit a ./index subpath', () => {
+    const exportsMap = buildExports(['index', 'btc']);
+
+    expect(exportsMap).not.toHaveProperty('./index');
+    expect(exportsMap).toHaveProperty('.');
+  });
+
+  it('rejects duplicate entry names', () => {
+    expect(() => buildExports(['index', 'btc', 'btc'])).toThrow(
+      /Duplicate export name "btc"/
+    );
+  });
+
   it('produces the expected export map shape', () => {
-    const shape = Object.entries(buildExports(['btc'])).map(
+    const shape = Object.entries(buildExports(['index', 'any', 'btc'])).map(
       ([subpath, target]) => {
         if (typeof target === 'string') {
           return `${subpath} -> ${target}`;
@@ -151,13 +161,15 @@ describe('published package exports', () => {
     }
   });
 
+  it('does not contain a ./index subpath', async () => {
+    const exportsMap = await readPackageExports();
+
+    expect(exportsMap).not.toHaveProperty('./index');
+  });
+
   it('matches the committed package.json exports', async () => {
     const exportsMap = await readPackageExports();
-    const modules = [
-      ...(await getModules(rootDir, 'chains')),
-      ...(await getModules(rootDir, 'aliases')),
-    ];
 
-    expect(exportsMap).toEqual(buildExports(modules));
+    expect(exportsMap).toEqual(buildExports(Object.keys(ENTRIES)));
   });
 });

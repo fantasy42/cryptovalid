@@ -73,7 +73,7 @@ The router lives in its own entry point (`cryptovalid/any`) so that users who im
 
 ### Modular Imports
 
-All functions are available from the main entry point (`cryptovalid`). For minimal bundle sizes, use tree‑shakeable sub‑paths:
+All validators except `validateAny` are available from the main entry point (`cryptovalid`). `validateAny` is available only from `cryptovalid/any`. For minimal bundle sizes, use tree‑shakeable sub‑paths:
 
 - `cryptovalid/eth` – `validateETH`, `validateETHBatch`, etc.
 - `cryptovalid/btc` – `validateBTC`, `validateBTCBatch`
@@ -141,6 +141,10 @@ See the project README for a usage example with `switch` statements.
 │   ├── constants.ts      # Public error codes and shared constants
 │   ├── index.ts          # Main entry point of the application/library
 │   └── types.ts          # Global TypeScript type definitions and interfaces
+│
+├── scripts/              # Build and packaging scripts
+│   ├── entries.ts        # Explicit public entry manifest (source of truth)
+│   └── checkEntries.ts   # Audit for unlisted chain/alias source files
 │
 └── tests/                # Integration and validation tests for blockchain networks
     └── [chain].test.ts   # Validator logic tests (e.g., btc, evm, sol, etc.)
@@ -243,10 +247,15 @@ Vite+ is distinct from Vite itself; it invokes Vite internally for commands like
    ```
 
 6. **Adding a New Chain** – When a new chain validator is added, you must also update the omnibox router (`src/any/routes.ts`):
+   - Add the source file at `src/chains/[chain].ts` and register it in `scripts/entries.ts` using a lowercase kebab-case name that matches the file name. The manifest is the single source of truth for build entries and generated `exports`; `constants` and `types` are reserved names.
+   - Keep `src/chains` and `src/aliases` entry-only: every `.ts` file directly inside them must be registered (co-located `*.test.ts`/`*.spec.ts` files are ignored). Put internal helpers in `src/utils` or a subdirectory; the audit deliberately rejects `index.ts` and `.d.ts` files there.
+   - Re-export the new validators and types from `src/index.ts` so the root entry stays complete. Entries listed in `ROOT_EXCLUDED_ENTRIES` (currently only `any`) are intentionally subpath-only and must not be added to the root entry.
+   - Update the expected entry list in `scripts/entries.test.ts` when the public entry set changes.
    - Add a fast heuristic predicate (regex/length check) for the new chain in the `ROUTES` array.
    - Add the new validator function to the `validators` array of the appropriate route entry. If the address format overlaps with an existing route (e.g., shared prefix), merge it into that route to avoid ambiguity.
    - Add tests in `tests/any.test.ts` for the new chain (valid address → returns the correct chain, invalid address → fails appropriately, cross‑chain isolation checks).
    - Update the `Supported Chains` table in `README.md`.
+   - Run `vp run check:entries` and `vp test`; the audit and parity checks fail if the manifest, sources, or root re-export clauses drift. Run `vp run build` after changing the manifest so the committed `exports` stay in sync.
 
 ## Testing and quality
 

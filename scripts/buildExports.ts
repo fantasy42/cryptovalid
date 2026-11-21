@@ -1,6 +1,3 @@
-import {promises as fs} from 'node:fs';
-import path from 'node:path';
-
 export interface ExportCondition {
   types: string;
   default: string;
@@ -14,10 +11,17 @@ export interface ConditionalExport {
 export type PackageExport = ConditionalExport | string;
 export type PackageExports = Record<string, PackageExport>;
 
-const SPECIAL_EXPORTS = [
-  {subpath: '.', file: 'index'},
-  {subpath: './any', file: 'any'},
-] as const;
+/**
+ * Maps an entry name to its public package subpath.
+ *
+ * The root entry is named `index`; every other entry is exposed as
+ * `./<name>`.
+ *
+ * @param name - Entry name from the manifest (e.g. `btc` or `index`).
+ */
+export function entrySubpath(name: string): string {
+  return name === 'index' ? '.' : `./${name}`;
+}
 
 /**
  * Builds the `import`/`require` conditions for a built entry.
@@ -43,50 +47,25 @@ export function conditions(file: string): ConditionalExport {
 /**
  * Builds the complete `exports` map for the package.
  *
- * @param modules - Chain and alias output basenames (e.g. `btc`).
+ * Every manifest entry is included: `index` becomes the root export and all
+ * other names become `./<name>` subpaths.
+ *
+ * @param entries - Entry names from the manifest, in package order.
  */
-export function buildExports(modules: readonly string[]): PackageExports {
+export function buildExports(entries: readonly string[]): PackageExports {
   const exportsConfig: PackageExports = {};
+  const seen = new Set<string>();
 
-  for (const {subpath, file} of SPECIAL_EXPORTS) {
-    exportsConfig[subpath] = conditions(file);
-  }
+  for (const name of entries) {
+    if (seen.has(name)) {
+      throw new Error(`Duplicate export name "${name}".`);
+    }
 
-  for (const file of modules) {
-    exportsConfig[`./${file}`] = conditions(file);
+    seen.add(name);
+    exportsConfig[entrySubpath(name)] = conditions(name);
   }
 
   exportsConfig['./package.json'] = './package.json';
 
   return exportsConfig;
-}
-
-/**
- * Lists buildable module basenames in a source directory.
- *
- * Results are sorted so generated `exports` are deterministic across
- * filesystems. A missing directory is treated as empty; other filesystem
- * errors propagate instead of silently producing an empty export map.
- *
- * @param rootDir - Package root containing `src`.
- * @param dirName - Source directory to scan (e.g. `chains`).
- */
-export async function getModules(
-  rootDir: string,
-  dirName: string
-): Promise<string[]> {
-  const dirPath = path.resolve(rootDir, 'src', dirName);
-
-  try {
-    const files = await fs.readdir(dirPath);
-    return files
-      .filter((file) => file.endsWith('.ts') && !file.includes('.test.'))
-      .map((file) => path.parse(file).name)
-      .sort();
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      return [];
-    }
-    throw error;
-  }
 }

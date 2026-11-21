@@ -1,3 +1,5 @@
+// `validateAny` is intentionally not re-exported from the root entry: the
+// omnibox router is a separate public entry (`cryptovalid/any`).
 export {validateBTC, validateBTCBatch} from './chains/btc';
 export {validateXRP, validateXRPBatch} from './chains/xrp';
 export {validateTON, validateTONBatch} from './chains/ton';

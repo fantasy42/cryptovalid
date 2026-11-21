@@ -195,6 +195,7 @@
     "test": "vp test",
     "smoke": "node scripts/smokeDist.mjs",
     "check": "vp check",
+    "check:entries": "node --experimental-strip-types scripts/checkEntries.ts",
     "prepublishOnly": "vp run build",
     "prepare": "vp config"
   },

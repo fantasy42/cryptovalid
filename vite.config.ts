@@ -1,34 +1,8 @@
-import {glob} from 'tinyglobby';
-import path from 'node:path';
+import {defineConfig} from 'vite-plus';
 
-async function getEntries() {
-  const files = await glob([
-    'src/chains/*.ts',
-    'src/aliases/*.ts',
-    '!src/**/*.test.ts',
-  ]);
+import {ENTRIES} from './scripts/entries.ts';
 
-  const entries: Record<string, string> = {};
-  const seen = new Set<string>();
-
-  for (const file of files) {
-    const name = path.parse(file).name;
-    if (seen.has(name)) {
-      throw new Error(
-        `Duplicate entry name "${name}" from files: ${entries[name]} and ${file}. Rename one of the source files.`
-      );
-    }
-
-    seen.add(name);
-    entries[name] = file;
-  }
-
-  return entries;
-}
-
-const entries = await getEntries();
-
-export default {
+export default defineConfig({
   test: {
     // Vitest v4 compatibility: preserve mock call history.
     // Remove after tests no longer rely on calls from setup or earlier tests.
@@ -46,11 +20,7 @@ export default {
       // https://tsdown.dev/options/dependencies#deps-resolvedepsubpath
       resolveDepSubpath: true,
     },
-    entry: {
-      index: 'src/index.ts',
-      any: 'src/any/index.ts',
-      ...entries,
-    },
+    entry: ENTRIES,
     format: ['esm', 'cjs'],
     dts: {
       generator: 'tsgo',
@@ -79,4 +49,4 @@ export default {
     bracketSpacing: false,
     ignorePatterns: ['*.yml', '*.md'],
   },
-};
+});
