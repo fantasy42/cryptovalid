@@ -14,6 +14,13 @@ export default defineConfig({
     '*': 'vp check --fix',
   },
   pack: {
+    // Runtime-neutral library: no Node-only resolution assumptions.
+    platform: 'neutral',
+    // Keep a browser-safe syntax floor, independent of engines.node.
+    target: 'es2022',
+    // A neutral platform otherwise defaults fixedExtension to false,
+    // renaming outputs to .js/.d.ts and breaking the exports map.
+    fixedExtension: true,
     deps: {
       // tsdown <0.23 compatibility: resolve external dependency subpaths.
       // Remove to preserve subpath imports as written (the new default).
