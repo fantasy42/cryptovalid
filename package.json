@@ -35,152 +35,152 @@
   "exports": {
     ".": {
       "import": {
-        "default": "./dist/index.mjs",
-        "types": "./dist/index.d.mts"
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
       },
       "require": {
-        "default": "./dist/index.cjs",
-        "types": "./dist/index.d.cts"
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
       }
     },
     "./any": {
       "import": {
-        "default": "./dist/any.mjs",
-        "types": "./dist/any.d.mts"
+        "types": "./dist/any.d.mts",
+        "default": "./dist/any.mjs"
       },
       "require": {
-        "default": "./dist/any.cjs",
-        "types": "./dist/any.d.cts"
+        "types": "./dist/any.d.cts",
+        "default": "./dist/any.cjs"
       }
     },
     "./bnb": {
       "import": {
-        "default": "./dist/bnb.mjs",
-        "types": "./dist/bnb.d.mts"
+        "types": "./dist/bnb.d.mts",
+        "default": "./dist/bnb.mjs"
       },
       "require": {
-        "default": "./dist/bnb.cjs",
-        "types": "./dist/bnb.d.cts"
+        "types": "./dist/bnb.d.cts",
+        "default": "./dist/bnb.cjs"
       }
     },
     "./btc": {
       "import": {
-        "default": "./dist/btc.mjs",
-        "types": "./dist/btc.d.mts"
+        "types": "./dist/btc.d.mts",
+        "default": "./dist/btc.mjs"
       },
       "require": {
-        "default": "./dist/btc.cjs",
-        "types": "./dist/btc.d.cts"
+        "types": "./dist/btc.d.cts",
+        "default": "./dist/btc.cjs"
       }
     },
     "./eth": {
       "import": {
-        "default": "./dist/eth.mjs",
-        "types": "./dist/eth.d.mts"
+        "types": "./dist/eth.d.mts",
+        "default": "./dist/eth.mjs"
       },
       "require": {
-        "default": "./dist/eth.cjs",
-        "types": "./dist/eth.d.cts"
+        "types": "./dist/eth.d.cts",
+        "default": "./dist/eth.cjs"
       }
     },
     "./ltc": {
       "import": {
-        "default": "./dist/ltc.mjs",
-        "types": "./dist/ltc.d.mts"
+        "types": "./dist/ltc.d.mts",
+        "default": "./dist/ltc.mjs"
       },
       "require": {
-        "default": "./dist/ltc.cjs",
-        "types": "./dist/ltc.d.cts"
+        "types": "./dist/ltc.d.cts",
+        "default": "./dist/ltc.cjs"
       }
     },
     "./polygon": {
       "import": {
-        "default": "./dist/polygon.mjs",
-        "types": "./dist/polygon.d.mts"
+        "types": "./dist/polygon.d.mts",
+        "default": "./dist/polygon.mjs"
       },
       "require": {
-        "default": "./dist/polygon.cjs",
-        "types": "./dist/polygon.d.cts"
+        "types": "./dist/polygon.d.cts",
+        "default": "./dist/polygon.cjs"
       }
     },
     "./sol": {
       "import": {
-        "default": "./dist/sol.mjs",
-        "types": "./dist/sol.d.mts"
+        "types": "./dist/sol.d.mts",
+        "default": "./dist/sol.mjs"
       },
       "require": {
-        "default": "./dist/sol.cjs",
-        "types": "./dist/sol.d.cts"
+        "types": "./dist/sol.d.cts",
+        "default": "./dist/sol.cjs"
       }
     },
     "./ton": {
       "import": {
-        "default": "./dist/ton.mjs",
-        "types": "./dist/ton.d.mts"
+        "types": "./dist/ton.d.mts",
+        "default": "./dist/ton.mjs"
       },
       "require": {
-        "default": "./dist/ton.cjs",
-        "types": "./dist/ton.d.cts"
+        "types": "./dist/ton.d.cts",
+        "default": "./dist/ton.cjs"
       }
     },
     "./trx": {
       "import": {
-        "default": "./dist/trx.mjs",
-        "types": "./dist/trx.d.mts"
+        "types": "./dist/trx.d.mts",
+        "default": "./dist/trx.mjs"
       },
       "require": {
-        "default": "./dist/trx.cjs",
-        "types": "./dist/trx.d.cts"
+        "types": "./dist/trx.d.cts",
+        "default": "./dist/trx.cjs"
       }
     },
     "./xlm": {
       "import": {
-        "default": "./dist/xlm.mjs",
-        "types": "./dist/xlm.d.mts"
+        "types": "./dist/xlm.d.mts",
+        "default": "./dist/xlm.mjs"
       },
       "require": {
-        "default": "./dist/xlm.cjs",
-        "types": "./dist/xlm.d.cts"
+        "types": "./dist/xlm.d.cts",
+        "default": "./dist/xlm.cjs"
       }
     },
     "./xrp": {
       "import": {
-        "default": "./dist/xrp.mjs",
-        "types": "./dist/xrp.d.mts"
+        "types": "./dist/xrp.d.mts",
+        "default": "./dist/xrp.mjs"
       },
       "require": {
-        "default": "./dist/xrp.cjs",
-        "types": "./dist/xrp.d.cts"
+        "types": "./dist/xrp.d.cts",
+        "default": "./dist/xrp.cjs"
       }
     },
     "./usdt-bep20": {
       "import": {
-        "default": "./dist/usdt-bep20.mjs",
-        "types": "./dist/usdt-bep20.d.mts"
+        "types": "./dist/usdt-bep20.d.mts",
+        "default": "./dist/usdt-bep20.mjs"
       },
       "require": {
-        "default": "./dist/usdt-bep20.cjs",
-        "types": "./dist/usdt-bep20.d.cts"
+        "types": "./dist/usdt-bep20.d.cts",
+        "default": "./dist/usdt-bep20.cjs"
       }
     },
     "./usdt-erc20": {
       "import": {
-        "default": "./dist/usdt-erc20.mjs",
-        "types": "./dist/usdt-erc20.d.mts"
+        "types": "./dist/usdt-erc20.d.mts",
+        "default": "./dist/usdt-erc20.mjs"
       },
       "require": {
-        "default": "./dist/usdt-erc20.cjs",
-        "types": "./dist/usdt-erc20.d.cts"
+        "types": "./dist/usdt-erc20.d.cts",
+        "default": "./dist/usdt-erc20.cjs"
       }
     },
     "./usdt-trc20": {
       "import": {
-        "default": "./dist/usdt-trc20.mjs",
-        "types": "./dist/usdt-trc20.d.mts"
+        "types": "./dist/usdt-trc20.d.mts",
+        "default": "./dist/usdt-trc20.mjs"
       },
       "require": {
-        "default": "./dist/usdt-trc20.cjs",
-        "types": "./dist/usdt-trc20.d.cts"
+        "types": "./dist/usdt-trc20.d.cts",
+        "default": "./dist/usdt-trc20.cjs"
       }
     },
     "./package.json": "./package.json"
@@ -198,9 +198,11 @@
     "prepare": "vp config"
   },
   "devDependencies": {
+    "@arethetypeswrong/core": "0.18.5",
     "@noble/hashes": "2.4.0",
     "@types/node": "25.9.5",
     "bumpp": "12.2.0",
+    "publint": "0.3.25",
     "tinyglobby": "0.2.17",
     "typescript": "7.0.2",
     "vite-plus": "catalog:"

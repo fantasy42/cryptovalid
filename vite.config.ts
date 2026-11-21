@@ -59,6 +59,11 @@ export default {
     clean: true,
     treeshake: true,
     minify: true,
+    publint: true,
+    attw: {
+      profile: 'node16',
+      level: 'error',
+    },
   },
   lint: {
     options: {
