@@ -2,4 +2,6 @@ node_modules
 dist
 *.log
 .DS_Store
-.vitest/
+!.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json

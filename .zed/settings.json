@@ -4,16 +4,14 @@
       "initialization_options": {
         "settings": {
           "run": "onType",
-          "fixKind": "safe_fix",
-          "typeAware": true,
-          "unusedDisableDirectives": "deny"
+          "fixKind": "safe_fix"
         }
       }
     },
     "oxfmt": {
       "initialization_options": {
         "settings": {
-          "configPath": "./vite.config.ts",
+          "fmt.configPath": "./vite.config.ts",
           "run": "onSave"
         }
       }
@@ -82,9 +80,11 @@
           "language_server": {
             "name": "oxfmt"
           }
+        },
+        {
+          "code_action": "source.fixAll.oxc"
         }
-      ],
-      "code_action": "source.fixAll.oxc"
+      ]
     },
     "JSX": {
       "format_on_save": "on",
