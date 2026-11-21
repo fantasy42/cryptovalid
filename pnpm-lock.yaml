@@ -183,13 +183,14 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      '@noble/hashes':
+        specifier: ^2.4.0
+        version: 2.4.0
     devDependencies:
       '@arethetypeswrong/core':
         specifier: 0.18.5
         version: 0.18.5
-      '@noble/hashes':
-        specifier: 2.4.0
-        version: 2.4.0
       '@types/node':
         specifier: 25.9.5
         version: 25.9.5
