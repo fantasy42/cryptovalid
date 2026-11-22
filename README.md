@@ -1,11 +1,11 @@
 # cryptovalid &middot; [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/fantasy42/cryptovalid/blob/master/LICENSE) [![npm version](https://img.shields.io/npm/v/cryptovalid.svg?style=flat)](https://www.npmjs.com/package/cryptovalid) [![tests](https://github.com/fantasy42/cryptovalid/actions/workflows/test.yml/badge.svg)](https://github.com/fantasy42/cryptovalid/actions/workflows/test.yml)
 
-**Lightweight crypto address validator with checksum verification for Bitcoin, Ethereum, Solana and more.**
+**Lightweight crypto address validator for Bitcoin, Ethereum, Solana, and more.**
 
-- **Checksums, not regex** — Full verification of Bech32, EIP-55, Base58Check, CRC16 and more
-- **Batch validation** — Validate hundreds of addresses efficiently with full context
-- **Type-safe & fast** – Clean discriminated union results, synchronous validation, 350+ test vectors
-- **Tree-shakeable & tiny** — Import only what you need. Tiny bundle size
+- **Stop bad addresses early** - Checksum-aware validation catches typos and malformed input before funds move.
+- **Batch validation** - Validate many addresses at once while keeping the original input, index, and optional id.
+- **Type-safe and fast** - Discriminated union results, synchronous validation, 500+ tests.
+- **Tree-shakeable and small** - Per-chain entry points; import only what you need.
 
 ## Installation
 
@@ -15,95 +15,114 @@ npm install cryptovalid
 
 ## Requirements
 
-- **Consumers:** Node.js 22.12 or newer (`engines.node`). Browser, Worker, and Edge runtimes are supported.
-- **Development/CI:** Node.js 24 LTS, pinned in `.node-version`.
+- Node.js 22.12 or newer (`engines.node`).
+- Modern browsers, workers, and edge runtimes via ESM.
+- ESM and CommonJS builds, both with TypeScript types.
 
 ## Basic Usage
 
 ```ts
-import { validateBTC } from 'cryptovalid';
+import {validateBTC} from 'cryptovalid';
 
 const result = validateBTC('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4');
 
-// On success: { isValid: true, type: 'Bech32', address: 'bc1qw508....' }
-// On failure: { isValid: false, code: 'INVALID_CHECKSUM', message: 'Invalid Bech32 checksum' }
+// Success: {isValid: true, type: 'Bech32', address: 'bc1...', original: 'bc1...'}
+// Failure: {isValid: false, code: 'INVALID_CHECKSUM', message: '...', original: 'bc1...'}
 
 if (result.isValid) {
   console.log(`Valid ${result.type} address: ${result.address}`);
 } else {
-  console.error(`Validation failed: ${result.code} – ${result.message}`);
+  console.error(`Validation failed: ${result.code} - ${result.message}`);
 }
 ```
 
-> Each validator auto-trims input and rejects invalid formats early. All functions are synchronous and never throw.
+Validators trim surrounding whitespace and return failures as values; they do not throw on malformed addresses. Batch helpers expect an array.
+
+## Module Formats
+
+ESM is recommended for browsers, workers, edge runtimes, and modern Node:
+
+```ts
+import {validateBTC} from 'cryptovalid/btc';
+```
+
+CommonJS is supported on Node.js 22.12+:
+
+```js
+const {validateBTC} = require('cryptovalid/btc');
+```
+
+TypeScript resolves subpath types through the package `exports` map. Use `moduleResolution` `node16` or `nodenext` (with a matching `module` setting), or `bundler`; the legacy `node10` resolver does not see subpath types.
+
+## Supported Chains
+
+All validators listed below also have batch variants (`validateBTCBatch`, `validateETHBatch`, and so on).
+
+| Chain        | Validators                         | Accepted formats                            | Integrity                    |
+|--------------|------------------------------------|---------------------------------------------|------------------------------|
+| **Bitcoin**  | `validateBTC`                      | P2PKH, P2SH, Bech32, Bech32m                | Base58Check / Bech32/Bech32m |
+| **Ethereum** | `validateETH`, `validateERC20`     | `0x` + 40 hex                               | EIP-55 (mixed case)          |
+| **BNB**      | `validateBNB`, `validateBEP20`     | `0x` + 40 hex                               | EIP-55 (mixed case)          |
+| **Polygon**  | `validatePolygon`, `validateMatic` | `0x` + 40 hex                               | EIP-55 (mixed case)          |
+| **Solana**   | `validateSOL`                      | Base58, 32-byte key                         | None (format only)           |
+| **TRON**     | `validateTRX`, `validateTRC20`     | Base58Check `T...`                          | Base58Check                  |
+| **Litecoin** | `validateLTC`                      | P2PKH, P2SH, Bech32, Bech32m                | Base58Check / Bech32/Bech32m |
+| **XRP**      | `validateXRP`                      | Classic `r...`, X-address `X...` (mainnet)  | Base58Check                  |
+| **Stellar**  | `validateXLM`                      | `G...` standard, `M...` muxed               | CRC16-XModem                 |
+| **TON**      | `validateTON`                      | Raw, user-friendly (mainnet/testnet)        | CRC16                        |
+
+EIP-55 is verified only when an EVM address is mixed case. Lowercase and uppercase forms are accepted and normalized to lowercase on success.
+
+Token aliases return the base chain's type: `validateUSDTERC20` returns `'Ethereum'`, `validateUSDTBEP20` returns `'BNB'`, and `validateUSDTTRC20` returns `'TRON'`.
 
 ## Batch Validation
 
+Every validator has a batch counterpart (`validateBTCBatch`, `validateETHBatch`, and so on). Items can be plain strings or `{address, id}` objects:
+
 ```ts
-import { validateETHBatch } from 'cryptovalid';
+import {validateETHBatch} from 'cryptovalid';
 
 const results = validateETHBatch([
   '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
   '0xinvalid',
-  { address: '0x…', id: 'field2' },
+  {address: '0x1234', id: 'field2'},
 ]);
 
 results.forEach((r) => {
   if (r.isValid) {
-    console.log(`✅ [${r.index}] ${r.original} → ${r.type}`);
+    console.log(`[${r.index}] ${r.original} -> ${r.type}`);
   } else {
-    console.error(`❌ [${r.index}] ${r.original} → ${r.code}: ${r.message}`);
+    console.error(`[${r.index}] ${r.original} -> ${r.code}: ${r.message}`);
   }
 });
 ```
 
-Each result exposes the original (trimmed) address, its position, and an optional `id` for mapping back to UI fields.
-
-## Supported Chains
-
-All validators below are also available as batch versions (e.g. `validateBTC` → `validateBTCBatch`). Token aliases like `validateUSDTERC20` are included for semantic clarity.
-
-| Chain           | Functions                              | Key Features                                      |
-|-----------------|----------------------------------------|---------------------------------------------------|
-| **Bitcoin**     | `validateBTC`                          | Legacy (P2PKH), P2SH, Bech32, Bech32m             |
-| **Ethereum**    | `validateETH`, `validateERC20`         | EIP-55 checksum                                   |
-| **BNB**         | `validateBNB`, `validateBEP20`         | EIP-55 checksum                                   |
-| **Solana**      | `validateSOL`                          | Base58, 32-byte public key (wallets + PDAs)       |
-| **TRON**        | `validateTRX`, `validateTRC20`         | Base58Check                                       |
-| **Litecoin**    | `validateLTC`                          | Legacy (P2PKH), P2SH, Bech32, Bech32m             |
-| **Polygon**     | `validatePolygon`, `validateMatic`     | EIP-55 checksum                                   |
-| **XRP**         | `validateXRP`                          | Classic (r-prefix) + X-Address                    |
-| **Stellar**     | `validateXLM`                          | Standard (G…) + Muxed (M…) + CRC16                |
-| **TON**         | `validateTON`                          | Raw + User-Friendly formats + CRC16               |
+Each result includes the trimmed `original` input, its position (`index`), and the optional `id` you supplied.
 
 ## Universal Validation (`validateAny`)
 
-Validates an address against all supported chains at once. Designed for input boxes in cross‑chain wallets, bridges, or portfolio trackers.
+`validateAny` runs the matching chain validators and returns every chain that accepts the address. It is available only from `cryptovalid/any`, so single-chain imports do not include every validator.
 
 ```ts
-import { validateAny } from 'cryptovalid/any';
+import {validateAny} from 'cryptovalid/any';
 
 const result = validateAny('0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045');
 
 if (result.isValid) {
-  console.log(result.chains);   // ['Ethereum', 'BNB', 'Polygon']
-  console.log(result.address);  // normalized lowercase address
+  console.log(result.chains);  // ['Ethereum', 'BNB', 'Polygon']
+  console.log(result.address); // normalized lowercase address
 } else {
   console.error(`${result.code}: ${result.message}`);
 }
 ```
 
-`validateAny` uses fast heuristics to narrow candidates, then performs strict checksum validation only on plausible chains. On success, `result.chains` lists every valid chain; on failure, `result.code` gives the relevant error (`UNSUPPORTED_TYPE` if no chain matches, or a specific code like `INVALID_CHECKSUM`).
+EVM addresses match Ethereum, BNB, and Polygon. A `3...` P2SH address can match both Bitcoin and Litecoin. If you already know the chain, use the chain-specific validator: it is more direct, authoritative, and cheaper.
 
-A batch variant (`validateAnyBatch`) is also available and follows the same `{ address, id }` pattern as other batch validators.
-
-> **Bundle note:** Importing from `cryptovalid/any` includes **all** chain validators. For minimal bundle size, use dedicated imports (e.g. `cryptovalid/btc`).
+On failure, `result.code` is `UNSUPPORTED_TYPE` when no format matches, or a chain error such as `INVALID_CHECKSUM`. A batch variant (`validateAnyBatch`) follows the same `{address, id}` pattern as other batch validators.
 
 ## Error Codes
 
-All failure results contain a machine‑readable code and a human‑readable message. This allows you to build smart error handling, custom UI messages, analytics, and recovery flows without string parsing.
-
-### Available Error Codes
+Every failure has a stable, machine-readable `code` and a human-readable `message`. The `code` is part of the API; the `message` may change, so do not parse it.
 
 Import the codes and type from the dedicated subpath (the same exports are also available from the root entry):
 
@@ -116,27 +135,29 @@ import {
 
 Using `cryptovalid/constants` keeps chain-only consumers from pulling in the root entry just to switch on error codes.
 
+### Available Error Codes
+
 | Code                   | Meaning                                                                      |
 |------------------------|------------------------------------------------------------------------------|
 | `NULL_OR_UNDEFINED`    | Input was `null`, `undefined`, or not a string.                              |
 | `EMPTY`                | Address was empty or only whitespace.                                        |
 | `TOO_LONG`             | Address exceeds maximum length (256 chars).                                  |
-| `INVALID_CHARACTERS`   | Contains control or non‑printable characters.                                |
+| `INVALID_CHARACTERS`   | Contains control or non-ASCII characters.                                    |
 | `INVALID_FORMAT`       | General format violation.                                                    |
 | `INVALID_PREFIX`       | Missing or invalid prefix.                                                   |
 | `INVALID_LENGTH`       | Wrong length for the address type.                                           |
-| `INVALID_CHECKSUM`     | Checksum verification failed (Bech32, Base58Check, EIP‑55, CRC16, etc.).     |
+| `INVALID_CHECKSUM`     | Checksum verification failed (Bech32, Base58Check, EIP-55, CRC16, etc.).     |
 | `INVALID_VERSION`      | Invalid version byte or witness version.                                     |
 | `INVALID_ENCODING`     | Invalid underlying encoding.                                                 |
 | `MIXED_CASE`           | Mixed case where single case is required.                                    |
 | `UNSUPPORTED_TYPE`     | Format not supported by this validator.                                      |
 | `INTERNAL_ERROR`       | Unexpected internal error.                                                   |
 
-### Usage example
+### Usage Example
 
 ```ts
-import { validateETH } from 'cryptovalid/eth';
-import { ValidationErrorCodes } from 'cryptovalid/constants';
+import {validateETH} from 'cryptovalid/eth';
+import {ValidationErrorCodes} from 'cryptovalid/constants';
 
 const result = validateETH(address);
 
@@ -158,41 +179,42 @@ if (!result.isValid) {
 
 You can also map codes to translations, icons, or severity levels.
 
-## Modular Imports
+## Modular Imports and Size
+
+Use a chain subpath to keep bundles small:
 
 ```ts
-import { validateBTC } from 'cryptovalid/btc';
-import { validateUSDTTRC20 } from 'cryptovalid/usdt-trc20';
-import { validateSOL } from 'cryptovalid/sol';
+import {validateBTC} from 'cryptovalid/btc';
+import {validateUSDTTRC20} from 'cryptovalid/usdt-trc20';
 ```
 
-> A single validator adds **< 3 kB gzipped**.
+With esbuild 0.27 (minified + gzip, dependencies included), a chain-specific entry is roughly **1.5-6 kB**, `cryptovalid/constants` is under **1 kB**, and the all-chain router is about **11 kB**. Exact sizes depend on your bundler; import only what you need.
 
 ## Performance
 
-All validation runs synchronously with a consistent per‑address cost. Batch processing scales linearly with the input size. In practice, the library validates **thousands of addresses per millisecond** on modern hardware, with no inherent input size limit.
+Validation is synchronous and does no I/O. Batch helpers process each item once, so cost scales linearly with input size. Measure on your target runtime for capacity planning.
 
 ## Security
 
-**This library performs offline format and checksum verification only.** It protects against accidental typing errors and malformed addresses, but it does **not**:
+This library performs offline format and checksum verification only. It does not guarantee that an address belongs to the intended recipient, verify on-chain activity, or handle private keys and seed phrases.
 
-- guarantee that an address belongs to the intended recipient
-- verify on‑chain activity, contract existence, or balance
-- handle private keys, seed phrases, or any secret material
+Checksum coverage varies by chain:
 
-Always verify addresses through multiple independent channels before sending funds. For critical applications, consider additional on‑chain lookups.
+- Solana has no checksum. A typo that still decodes to 32 bytes will pass.
+- EIP-55 is enforced only for mixed-case EVM input; lowercase and uppercase forms are accepted.
+- A checksum-valid address can still be the wrong recipient. Verify the full address through a second channel, especially against address-poisoning attempts that mimic leading or trailing characters.
 
 If you discover a security vulnerability, please follow the [Security Policy](.github/SECURITY.md) instead of opening a public issue.
 
 ## Contributing
 
-Development happens in the open on GitHub and we are grateful for contributions including bug fixes, improvements, and ideas.
+Development happens in the open on GitHub, and contributions including bug fixes, improvements, and ideas are welcome.
 
-Read the [contributing guide](.github/CONTRIBUTING.md) to learn about our development process, how to propose bug fixes and improvements, and how to build and test your changes.
+Read the [contributing guide](.github/CONTRIBUTING.md) to learn about the development process, how to propose bug fixes and improvements, and how to build and test your changes.
 
 ### Code of Conduct
 
-This project expects all participants to adhere to the project's [Code of Conduct](.github/CODE_OF_CONDUCT.md). Please read the full text so that you can understand what actions will and will not be tolerated.
+This project expects all participants to adhere to the project's [Code of Conduct](.github/CODE_OF_CONDUCT.md). Please read the full text so that you understand what actions will and will not be tolerated.
 
 ### License
 

@@ -1,324 +1,80 @@
-# Project overview
+# AGENTS.md
 
-`cryptovalid` is a TypeScript‑first, lightweight library for validating cryptocurrency addresses with checksums. It provides high‑performance validators for Bitcoin, Ethereum, BNB, TRON, Solana, and various token standards (ERC‑20, BEP‑20, TRC‑20).
+Instructions for coding agents working on `cryptovalid`. Keep this file short and actionable. The public API belongs in `README.md`; the human contribution workflow belongs in `.github/CONTRIBUTING.md`.
 
-The library is designed for both frontend and backend developers, fully compatible with browsers, Node.js, and Edge runtimes. Its main purpose is to ensure that cryptocurrency addresses are properly formatted and valid before any transactions are made, improving security and user experience by preventing funds from being sent to invalid destinations.
+## What this repo is
 
-## Entry points and exports
+`cryptovalid` is a TypeScript-first address validation library. It validates formats and checksums where applicable, exports a discriminated `ValidationResult`, ships ESM and CommonJS builds with types, and runs in Node.js 22.12+, browsers, workers, and edge runtimes.
 
-The library exports a `ValidationResult` type and a set of validator functions. Every validator automatically trims leading and trailing whitespace and performs basic sanity checks (non‑empty, ≤256 characters, ASCII printable only) – all handled by the shared `createValidator` factory.
+The public surface is the chain validators and their batch variants, token aliases, the `validateAny` router on its own subpath, and stable error codes. Do not duplicate that catalog here; read `README.md` or `src/index.ts`.
 
-### Validators
+## Commands
 
-- **`validateBTC(address)`** – Bitcoin mainnet addresses (Legacy P2PKH, Nested SegWit P2SH, Native SegWit Bech32, Taproot Bech32m).
-- **`validateETH(address)` / `validateERC20(address)`** – Ethereum mainnet addresses with EIP‑55 checksum.
-- **`validateUSDTERC20(address)`** – Alias for `validateETH`. Returns the same result type (`'Ethereum'`). Use for semantic clarity when validating USDT on ERC‑20.
-- **`validateBNB(address)` / `validateBEP20(address)`** – BNB Smart Chain addresses (EIP‑55).
-- **`validateUSDTBEP20(address)`** – Alias for `validateBNB`. Returns `'BNB'` type.
-- **`validateSOL(address)`** – Solana mainnet addresses (Base58, 32‑byte decoded length).
-- **`validateTRX(address)` / `validateTRC20(address)`** – TRON mainnet addresses (Base58Check).
-- **`validateUSDTTRC20(address)`** – Alias for `validateTRX`. Returns `'TRON'` type.
-- **`validateXRP(address)`** – XRP Ledger addresses (Classic r‑prefix and X‑Addresses).
-- **`validateLTC(address)`** – Litecoin mainnet addresses (Legacy, P2SH, Bech32, Bech32m).
-- **`validateXLM(address)`** – Stellar mainnet addresses (Standard G…, Muxed M…).
-- **`validatePolygon(address)` / `validateMatic(address)`** – Polygon PoS addresses (EIP‑55).
-- **`validateTON(address)`** – TON addresses (Raw and User‑Friendly formats, CRC16).
+Use `vp` for everything. Do not use `npm`, `pnpm`, `yarn`, or `bun` directly.
 
-### Batch Validators
+- `vp install` - install dependencies after pulling changes.
+- `vp check` - Oxlint, Oxfmt, and type checks. Add `--fix` to autofix.
+- `vp test` - run the full suite. `vp test tests/btc.test.ts` runs one file.
+- `vp run build` - regenerate exports, pack `dist`, and verify built declarations.
+- `vp run check:entries` - audit `src/chains` and `src/aliases` against the entry manifest.
+- `vp run smoke` - smoke-test the built `dist` in ESM and CJS.
+- `vp run smoke:package <tarball>` - smoke-test a packed tarball in a clean consumer. Run `vp run build && vp pm pack` first; `dist` is not committed.
 
-Every validator above has a corresponding batch function that accepts an array of `BatchItem` objects and returns an array of `BatchValidationResult` objects.
-Batch functions are built with `createBatchValidator` and re‑use the exact same validation logic as their single‑address counterparts.
+Development and CI run Node 24, pinned in `.node-version`. The published floor is `engines.node >=22.12.0`, tested against the packed tarball on Node 22.12, 24, and 26. Do not raise the runtime floor to the development floor without a major-version review.
 
-**Available batch functions:**
+Vite+ documentation is available at `node_modules/vite-plus/docs` or [viteplus.dev](https://viteplus.dev/guide/).
 
-- `validateBTCBatch(items)`
-- `validateETHBatch(items)` / `validateERC20Batch(items)`
-- `validateUSDTERC20Batch(items)`
-- `validateBNBBatch(items)` / `validateBEP20Batch(items)`
-- `validateUSDTBEP20Batch(items)`
-- `validateSOLBatch(items)`
-- `validateTRXBatch(items)` / `validateTRC20Batch(items)`
-- `validateUSDTTRC20Batch(items)`
-- `validateXRPBatch(items)`
-- `validateLTCBatch(items)`
-- `validateXLMBatch(items)`
-- `validatePolygonBatch(items)` / `validateMaticBatch(items)`
-- `validateTONBatch(items)`
-
-Usage snippet:
-
-```ts
-// items can be plain strings or { address, id } objects
-const results = validateETHBatch([
-  '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
-  '0xinvalid',
-  { address: '0x…', id: 'field2' },
-]);
-
-results.forEach((r) => {
-  // r.isValid, r.type, r.address, r.code, r.message, r.original, r.index, r.id
-});
-```
-
-Each result preserves the original trimmed input, its position, and an optional `id` you supplied.
-
-### Omnibox Router (`validateAny`)
-
-The library includes a universal multi‑chain validator (`validateAny`) that automatically detects the blockchain of an address and returns all matching chains.
-
-- **`validateAny(address)`** – Validates an address against all supported chains. Uses a two‑tier routing system: fast heuristic pre‑filtering (regex/length patterns) to narrow down candidate chains, followed by strict checksum verification only on those candidates. Returns `{ isValid, chains, address, original }`.
-- **`validateAnyBatch(items)`** – Batch variant that accepts an array of addresses or `{ address, id }` objects and returns results in the same order, following the same batch pattern as other validators.
-
-The router lives in its own entry point (`cryptovalid/any`) so that users who import only a single chain are not burdened with the multi‑chain registry.
-
-### Modular Imports
-
-All validators except `validateAny` are available from the main entry point (`cryptovalid`). `validateAny` is available only from `cryptovalid/any`. For minimal bundle sizes, use tree‑shakeable sub‑paths:
-
-- `cryptovalid/eth` – `validateETH`, `validateETHBatch`, etc.
-- `cryptovalid/btc` – `validateBTC`, `validateBTCBatch`
-- `cryptovalid/any` – `validateAny`, `validateAnyBatch`
-- `cryptovalid/usdt-bep20` – `validateUSDTBEP20`, `validateUSDTBEP20Batch`
-- `cryptovalid/constants` – `ValidationErrorCodes`, `ValidationErrorCode` (no validator code)
-- (other chains follow the same pattern)
-
-### Error System
-
-Every failure result contains a **machine‑readable `code`** and a **human‑readable `message`**. The codes are chain‑agnostic and reused across all validators. Both success and failure results carry an `original` field with the trimmed input string.
-
-#### Public API
-
-- `ValidationErrorCodes` — a constant object with all error codes.
-- `ValidationErrorCode` — the union type of all possible code string literals.
-- Both are exported from the main entry point and from the `cryptovalid/constants` subpath.
-
-#### Internal mapping
-
-The `base58Check` utility returns its own internal error codes. The helper function `mapBase58CheckError` maps those internal codes to the public `ValidationErrorCodes`, so that chain validators only deal with the public set.
-
-When writing a new validator, use the factory's `failure({code, message, original})` method. The `code` must be one of the public constants, and `original` should be the trimmed address being validated. The `success({type, address, original})` method follows the same object‑parameter pattern.
-
-#### Available codes
-
-| Code                   | Meaning                                                                      |
-|------------------------|------------------------------------------------------------------------------|
-| `NULL_OR_UNDEFINED`    | Input was `null`, `undefined`, or not a string.                              |
-| `EMPTY`                | Address was empty or only whitespace.                                        |
-| `TOO_LONG`             | Address exceeds maximum length (256 chars).                                  |
-| `INVALID_CHARACTERS`   | Contains control or non‑printable characters.                                |
-| `INVALID_FORMAT`       | General format violation.                                                    |
-| `INVALID_PREFIX`       | Missing or invalid prefix.                                                   |
-| `INVALID_LENGTH`       | Wrong length for the address type.                                           |
-| `INVALID_CHECKSUM`     | Checksum verification failed (Bech32, Base58Check, EIP‑55, CRC16, etc.).     |
-| `INVALID_VERSION`      | Invalid version byte or witness version.                                     |
-| `INVALID_ENCODING`     | Invalid underlying encoding.                                                 |
-| `MIXED_CASE`           | Mixed case where single case is required.                                    |
-| `UNSUPPORTED_TYPE`     | Format not supported by this validator.                                      |
-| `INTERNAL_ERROR`       | Unexpected internal error.                                                   |
-
-See the project README for a usage example with `switch` statements.
-
-## Project Structure
+## Layout
 
 ```text
-.
-├── src/
-│   ├── aliases/          # Token variant and alias configurations (e.g., USDT types)
-│   │   └── usdt-*.ts
-│   │
-│   ├── any/              # Omnibox router – validateAny and validateAnyBatch
-│   │   ├── index.ts      # Router implementation
-│   │   ├── routes.ts     # Route registry (heuristic predicates + validators)
-│   │   └── types.ts      # AnyValidationResult, AnyBatchValidationResult
-│   │
-│   ├── chains/           # Blockchain network implementations and constants
-│   │   └── [chain_files].ts
-│   │
-│   ├── utils/            # Utility and helper functions
-│   │   ├── __tests__/    # Unit tests specifically for internal utility functions
-│   │   ├── base*.ts      # Encoding/decoding utils (Base32, Base58, etc.)
-│   │   └── [other_utils].ts
-│   │
-│   ├── constants.ts      # Public error codes and shared constants
-│   ├── globals.d.ts      # Web-standard globals declared for the library project
-│   ├── index.ts          # Main entry point of the application/library
-│   └── types.ts          # Global TypeScript type definitions and interfaces
-│
-├── scripts/              # Build and packaging scripts
-│   ├── entries.ts        # Explicit public entry manifest (source of truth)
-│   └── checkEntries.ts   # Audit for unlisted chain/alias source files
-│
-└── tests/                # Integration and validation tests for blockchain networks
-    └── [chain].test.ts   # Validator logic tests (e.g., btc, evm, sol, etc.)
+src/index.ts          root exports (every public entry except `any`)
+src/chains/*.ts       one public entry per chain
+src/aliases/*.ts      token aliases
+src/any/              validateAny router; subpath-only
+src/utils/            codecs, validator factories, prevalidation
+src/constants.ts      stable error codes
+scripts/entries.ts    entry manifest -> generated package.json exports
+tests/                per-chain and router tests
 ```
 
-## Toolchain: Vite+
+## Invariants
 
-This project uses **Vite+**, a unified toolchain built on top of Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task. It wraps runtime management, package management, and frontend tooling in a single global CLI called `vp`. Do **not** use `npm`, `pnpm`, `yarn`, or `bun` directly.
+1. `scripts/entries.ts` is the source of truth for build entries and generated `exports`. Never hand-edit `package.json` exports; edit the manifest and run `vp run build`. CI checks the generated diff.
+2. `src/chains` and `src/aliases` are entry-only. Every public top-level `.ts` file there must be registered in the manifest. Co-located `*.test.ts` and `*.spec.ts` files are ignored; `index.ts` and `.d.ts` files are rejected. Put helpers in `src/utils` or a subdirectory.
+3. `src/index.ts` must re-export every public entry except `any`, which is subpath-only. `scripts/entries.test.ts` enforces parity.
+4. Every chain validator uses `createValidator`; every chain batch validator uses `createBatchValidator`. The router has its own batch wrapper. Shared input checks live in `src/utils/prevalidate.ts`: string, trimmed, non-empty, at most 256 characters, ASCII 32-126. Do not duplicate them.
+5. Failure results use `ValidationErrorCodes` and a human-readable `message`. `code` is stable; `message` is not. Chain validators and their batch variants return the trimmed `original`; keep that behavior for new chain validators.
+6. Chain validators must not throw on malformed address input. `createValidator` catches exceptions and maps them to `INTERNAL_ERROR`. Batch functions expect an array of `BatchItem` values.
+7. `validateAny` runs the routes whose predicates match, then runs the corresponding validators. When adding a route, make the predicate accept every format the underlying validator accepts, and add cross-chain tests.
+8. The root `tsconfig.json` is a file-less solution (`files: []`) with shared compiler options. Do not populate `files` or add `include`. `tsconfig.lib.json` covers shipped source with no Node or DOM globals; `tsconfig.node.json` adds Node types for tests, scripts, and `vite.config.ts`. The build uses `tsconfig.lib.json`.
+9. Checksum code (Base58Check, Bech32, EIP-55, CRC16) is security-critical. Changes require expanded reference vectors, a clear explanation of why validation is not weakened, and maintainer review. Adding an address type is compatible; rejecting previously valid addresses requires a major version.
+10. Do not add runtime dependencies casually. The only current runtime dependency is `@noble/hashes`.
 
-Vite+ is distinct from Vite itself; it invokes Vite internally for commands like `vp dev` and `vp build`.
+## Adding a Chain
 
-The development and CI Node.js version is pinned in `.node-version` (24 LTS). The published library keeps a wider runtime contract (`engines.node >=22.12.0`); runtime compatibility is tested against the packed tarball on Node 22.12, 24, and 26. Do not raise the runtime floor to the development floor without a major-version review.
+1. Add `src/chains/<name>.ts` with an exported address type, `validate<Chain>`, `validate<Chain>Batch`, and JSDoc. Follow an existing chain file for structure.
+2. Register it in `scripts/entries.ts` with a lowercase kebab-case name that matches the file name.
+3. Re-export the values and types from `src/index.ts`.
+4. Update the expected entry list in `scripts/entries.test.ts`.
+5. Add a predicate and validator entries to `src/any/routes.ts`. If the format overlaps an existing route, merge it instead of creating an ambiguous route.
+6. Add `tests/<name>.test.ts` and cases in `tests/any.test.ts` for valid addresses, invalid addresses, and cross-chain isolation.
+7. Update the supported-chains table in `README.md`.
+8. Run `vp run check:entries`, `vp test`, and `vp run build`.
 
-| npm command               | Vite+ command            | Description                          |
-|---------------------------|--------------------------|--------------------------------------|
-| `npm install`             | `vp install`             | Install dependencies                 |
-| `npm run build`           | `vp pack`                | Build the library (output in `dist`) |
-| `npm test`                | `vp test`                | Run all tests                        |
-| `npm run lint & format`   | `vp check`               | Run Oxlint, Oxfmt, and type check    |
-| `npm run dev`             | `vp dev`                 | Start dev server (if applicable)     |
+## Tests
 
-1. Run `vp help` to print a list of commands.
-2. Run `vp <command> --help` for information about a specific command.
-3. Docs are available locally at `node_modules/vite-plus/docs` or online at [viteplus.dev](https://viteplus.dev/guide/).
+- Chain tests live in `tests/*.test.ts`. Internal utility tests live in `src/utils/__tests__/`.
+- Batch behavior is covered by the generic `src/utils/__tests__/batch.test.ts`. The router has `tests/any.test.ts`.
+- New validators need positive cases, negative cases (length, charset, checksum, wrong network), and edge cases (empty, whitespace, maximum length, leading zeros).
+- Assert `result.code` and `result.message` on failure, not an `error` string. Assert `original` only where it documents trimming or null input.
+- Aim for 95% line coverage on validator and utility logic. Coverage is a target, not an enforced gate today.
 
-### Build and Test Commands
+## CI and Release
 
-1. Install dependencies: `vp install`
-2. Build the library: `vp run build` (or `vp pack`)
-3. Run format, lint, and type checks: `vp check`
-4. Run tests: `vp test`. To run only a specific test file: `vp test tests/btc.test.ts`
-5. Test the packed package in a clean consumer: `vp pm pack`, then `vp run smoke:package <tarball>`
+CI runs `vp check --deny-warnings`, `vp test`, `vp run build`, `vp run smoke`, and a packed-package consumer smoke. `setup-vp` already runs `vp install`; do not add a second install step.
 
-### TypeScript projects
+Do not bump versions or publish manually. Run the `Release` workflow on `master`, choose `patch`/`minor`/`major`, and merge the release PR. The merge triggers the publish job; re-run the failed job if publishing fails. Details live in `.github/workflows/release.yml`.
 
-The root `tsconfig.json` is a solution: it has `"files": []` and only `references` the two real projects.
+## Docs
 
-- `tsconfig.lib.json` — shipped source (`src`), `types: []`, and an ES2022 lib with no DOM. Keep it free of Node and DOM globals; `src/globals.d.ts` declares only the web-standard globals the library uses.
-- `tsconfig.node.json` — `tests`, `scripts`, `vite.config.ts`, and `src/**/*.test.ts`, with Node types.
-
-Do not add `include`, `types`, or `lib` to the root `tsconfig.json`. A root that includes files would take over every file during Oxlint's per-file project discovery, and the two projects would silently stop being type-checked. `vite.config.ts` points `pack.tsconfig` at `tsconfig.lib.json` because declaration emit cannot use a file-less solution.
-
-For a whole-program check, run `tsc -p tsconfig.lib.json --noEmit` and `tsc -p tsconfig.node.json --noEmit`; the solution root itself contains no files, so `tsc --noEmit` checks nothing.
-
-## Code style and conventions
-
-1. **TypeScript Style** – `camelCase` for validator functions (e.g., `validateBTC`, `validateBTCBatch`), `PascalCase` for types and interfaces.
-2. **Validator Factory** – Every single‑address validator must be created with `src/utils/createValidator.ts`.
-   Batch validators are created with `src/utils/createBatchValidator.ts` (a thin wrapper that applies a single‑address validator to an array of `BatchItem` objects). The factory already:
-   - Trims the input.
-   - Ensures the string is non‑empty, ≤256 chars, and contains only ASCII printable characters (codes 32–126).
-   - Catches synchronous exceptions and converts them to a failure with `code` and `message`.
-   The `failure` helper accepts an object with `code`, `message`, and `original` fields. The `success` helper accepts `type`, `address`, and `original`.
-   The shared input sanitisation is implemented in `src/utils/prevalidate.ts`.
-3. **Formatting Rules** – Enforced by `vp check`:
-   - Semicolons required (`semi: true`)
-   - Single quotes (`singleQuote: true`)
-   - Line width: 80 characters
-   - No spaces inside brackets (`bracketSpacing: false`)
-   - Trailing commas: `es5`
-4. **Linting/Typing Rules** – TypeScript `strict: true`, `noUnusedLocals: true`. Oxlint is type‑aware (`typeAware: true`). Use `vp check` to validate and autofix format issues.
-5. **Documentation Templates** – Use the following templates for all validators.
-
-   Single-address validator:
-
-   ```ts
-   /** Supported [chain] address categories. */
-   export type ChainAddressType = ...;
-
-   /** Result returned by `validateChain()`. */
-   export type ChainValidationResult = ValidationResult<ChainAddressType>;
-
-   /**
-    * Validates a [chain] address ([encoding details]).
-    *
-    * [Brief description of format and checks].
-    *
-    * @param address - The [chain] address to validate.
-    * @returns A `ValidationResult` indicating whether the address is valid and, if valid, its detected type.
-    */
-   export const validateChain = ...
-   ```
-
-   Alias (single):
-
-   For aliases (e.g., `validateUSDTERC20`), the docstring must explicitly state that it is an alias for the base validator and mention the returned type value.
-
-   Batch validator (chain):
-
-   ```ts
-   /**
-    * Validates a batch of [chain] addresses.
-    *
-    * Wraps `validate[Chain]`; processes all items and collects results in order.
-    *
-    * @param items - Array of addresses or `BatchItem` objects.
-    * @returns Array of `BatchValidationResult`, preserving input order.
-    */
-   export const validate[Chain]Batch = createBatchValidator(validate[Chain]);
-   ```
-
-   Batch validator (alias):
-
-   ```ts
-   /**
-    * Validates a batch of USDT addresses on the [network] ([standard]).
-    *
-    * Alias for `validate[Chain]Batch`.
-    *
-    * @param items - Array of addresses or `BatchItem` objects.
-    * @returns Array of `BatchValidationResult`, preserving input order.
-    */
-   export const validateUSDTXXXBatch = validate[Chain]Batch;
-   ```
-
-6. **Adding a New Chain** – When a new chain validator is added, you must also update the omnibox router (`src/any/routes.ts`):
-   - Add the source file at `src/chains/[chain].ts` and register it in `scripts/entries.ts` using a lowercase kebab-case name that matches the file name. The manifest is the single source of truth for build entries and generated `exports`; `constants` is a fixed public entry and `types` is the only reserved internal name.
-   - Keep `src/chains` and `src/aliases` entry-only: every `.ts` file directly inside them must be registered (co-located `*.test.ts`/`*.spec.ts` files are ignored). Put internal helpers in `src/utils` or a subdirectory; the audit deliberately rejects `index.ts` and `.d.ts` files there.
-   - Re-export the new validators and types from `src/index.ts` so the root entry stays complete. Entries listed in `ROOT_EXCLUDED_ENTRIES` (currently only `any`) are intentionally subpath-only and must not be added to the root entry.
-   - Update the expected entry list in `scripts/entries.test.ts` when the public entry set changes.
-   - Add a fast heuristic predicate (regex/length check) for the new chain in the `ROUTES` array.
-   - Add the new validator function to the `validators` array of the appropriate route entry. If the address format overlaps with an existing route (e.g., shared prefix), merge it into that route to avoid ambiguity.
-   - Add tests in `tests/any.test.ts` for the new chain (valid address → returns the correct chain, invalid address → fails appropriately, cross‑chain isolation checks).
-   - Update the `Supported Chains` table in `README.md`.
-   - Run `vp run check:entries` and `vp test`; the audit and parity checks fail if the manifest, sources, or root re-export clauses drift. Run `vp run build` after changing the manifest so the committed `exports` stay in sync.
-
-## Testing and quality
-
-1. **Test location** – `tests/*.test.ts` (e.g., `btc.test.ts`, `eth.test.ts`). Internal utility tests live in `src/utils/__tests__/`.
-   Batch validators are covered by a generic batch test (`batch.test.ts`); individual chain batch functions do not require separate tests, as they use the same validation logic.
-   The omnibox router has its own dedicated test file `tests/any.test.ts`.
-2. **Test coverage** – Aim for ≥95% line coverage on all validator logic and all utility functions (base58, bech32, checksums). New validators must include:
-   - Positive cases (valid addresses of each type)
-   - Negative cases (invalid length, wrong charset, checksum mismatch, wrong network)
-   - Edge cases (empty string, whitespace‑only, maximum length, leading zero bytes, etc.)
-   - Tests must assert `result.code` and `result.message` on failure, not a plain `error` string. The `original` field should be asserted only where it documents a specific behavior (e.g., trimming, null input).
-3. **CI Requirements**: The GitHub Actions pipeline runs `vp check --deny-warnings`, `vp test`, `vp run build`, `vp run smoke`, and a packed-package consumer smoke. All PRs must pass these checks without errors. Runtime compatibility runs against the packed tarball on Node 22.12, 24, and 26; the Vite+ toolchain itself runs on the Node version in `.node-version`. `setup-vp` already runs `vp install`; do not add a second install step.
-
-## Releasing
-
-1. Run the `Release` workflow manually on `master` and choose `patch`, `minor`, or `major`. It opens a `release/vX.Y.Z` pull request.
-2. Merge that pull request. The merge is a push to `master`; the `Release` workflow then verifies the release commit, packs the tarball, publishes it with npm trusted publishing (OIDC), creates the `vX.Y.Z` tag, and creates the GitHub release.
-3. The gate only runs `verify`/`publish` when `package.json` names a version newer than the latest `v*` tag, or when a release still needs to be completed. Re-running the push run for the same commit is safe: the npm version, tag, and GitHub release are each checked before they are mutated.
-4. If a publish fails, re-run the failed `Release` run. npm scans new versions before they become available, so the publish step waits for the registry and treats a duplicate publish as success.
-
-## Security and reliability
-
-1. **Checksum implementations** (Base58Check, Bech32, EIP‑55, CRC16) are security‑critical. Any change to these files requires:
-   - Additional review by a maintainer.
-   - Expanded test vectors (including known edge cases from reference implementations).
-   - A clear explanation of why the change does not weaken validation.
-2. **Backward compatibility** – Validation logic must remain backward‑compatible. Adding a new address type is allowed; changing the validation of an existing type (e.g., suddenly rejecting previously valid addresses) requires a major version bump.
-3. **Error codes and messages** – Every failure returns a `code` from `ValidationErrorCodes` and a `message`. The `code` is stable and can be relied upon programmatically (for `switch` statements, logging, analytics). The `message` is intended for display to end users; it is in English and may evolve over time as wording improves. Do not remove or change the meaning of existing error codes without a major version bump.
-4. **Batch validation** – Batch functions reuse the same single‑address validation logic and therefore inherit all security and reliability guarantees. No additional risks are introduced.
-5. **Omnibox router** – The router runs all matching validators for an address. Its results are only as secure as the underlying per‑chain validators. No new security risks are introduced by the routing logic itself.
-
-## Contribution and pull requests
-
-1. **Workflow**:
-   - Fork the repository.
-   - Clone it locally.
-   - Create a branch using the `feature/your-feature-name` or `bugfix/...` format.
-2. **Package Management**: Always use `vp install` for package management.
-3. **Commits**: Write clear and descriptive commit messages.
-
-### PR Review Checklist
-
-Before opening or requesting review on a PR, ensure you have completed the following:
-
-- [ ] Run `vp install` after pulling remote changes and before getting started.
-- [ ] Run `vp check` and `vp test` to format, lint, type check, and test all changes.
-- [ ] Check if there are `vite.config.ts` tasks or `package.json` scripts necessary for validation, and run them via `vp run <script>`.
-- [ ] Ensure any new or modified validators have corresponding tests covering valid/invalid addresses and edge cases.
-- [ ] If a new chain validator is added, update `src/any/routes.ts` (predicate + validator entry) and add cross‑chain tests in `tests/any.test.ts`.
-- [ ] If the public API is changed, update the documentation in `README.md`.
+`README.md` is user-facing. Keep it accurate, concise, and free of internal implementation detail. Update it when the public API changes. Bundle-size and performance claims must state how they were measured and should be re-measured when dependencies change.
