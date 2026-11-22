@@ -6,9 +6,12 @@ import {describe, it, expect} from 'vite-plus/test';
 import {validateAny, validateAnyBatch} from '../../src/any';
 import {ROUTES, evaluateRoutes} from '../../src/any/routes';
 import {ValidationErrorCodes} from '../../src/constants';
+import {
+  EVM_INVALID_CHECKSUM_DIGIT,
+  EVM_VALID_CHECKSUMMED,
+  EVM_VALID_UPPERCASE_PREFIX,
+} from '../fixtures/evm';
 
-const VALID_ETH = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
-const INVALID_EVM_CHECKSUM = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96046';
 const INVALID_BTC_P2SH = '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLz';
 const INVALID_LTC_P2PKH = 'LaMZFeV1XdQ6yo8AzdrUHPrgKyfFmMG53c';
 const INVALID_LTC_BECH32 = 'ltc1qv43gel3n5hktls3tl0rpz3qrt98t0pavgaec9x';
@@ -42,12 +45,12 @@ const VALID_TON_USER = 'EQAs9VlT6S776tq3unJcP5Ogsj-ELLunLXuOb1EKcOQi4wJB';
 describe('validateAny', () => {
   describe('positive multi-match', () => {
     it('detects EVM address on Ethereum, BNB, and Polygon', () => {
-      const res = validateAny(VALID_ETH);
+      const res = validateAny(EVM_VALID_CHECKSUMMED);
       expect(res.isValid).toBe(true);
       if (res.isValid) {
         expect(res.chains).toEqual(['Ethereum', 'BNB', 'Polygon']);
-        expect(res.address).toBe(VALID_ETH.toLowerCase());
-        expect(res.original).toBe(VALID_ETH);
+        expect(res.address).toBe(EVM_VALID_CHECKSUMMED.toLowerCase());
+        expect(res.original).toBe(EVM_VALID_CHECKSUMMED);
       }
     });
 
@@ -148,7 +151,7 @@ describe('validateAny', () => {
         address: VALID_LTC_BECH32M,
         chain: 'Litecoin',
       },
-      {label: 'Ethereum', address: VALID_ETH, chain: 'Ethereum'},
+      {label: 'Ethereum', address: EVM_VALID_CHECKSUMMED, chain: 'Ethereum'},
       {label: 'Solana 32-byte', address: '1'.repeat(32), chain: 'Solana'},
       {label: 'Solana 43-char', address: VALID_SOL, chain: 'Solana'},
       {label: 'Solana 44-char', address: VALID_SOL_44, chain: 'Solana'},
@@ -192,12 +195,12 @@ describe('validateAny', () => {
     });
 
     it('routes the uppercase 0X EVM prefix and normalizes the address', () => {
-      const address = '0X' + VALID_ETH.slice(2);
+      const address = EVM_VALID_UPPERCASE_PREFIX;
       const res = validateAny(address);
       expect(res.isValid).toBe(true);
       if (res.isValid) {
         expect(res.chains).toEqual(['Ethereum', 'BNB', 'Polygon']);
-        expect(res.address).toBe(VALID_ETH.toLowerCase());
+        expect(res.address).toBe(address.toLowerCase());
       }
     });
 
@@ -234,9 +237,9 @@ describe('validateAny', () => {
     });
 
     it('returns the trimmed input as original', () => {
-      const res = validateAny(`  ${VALID_ETH}  `);
+      const res = validateAny(`  ${EVM_VALID_CHECKSUMMED}  `);
       expect(res.isValid).toBe(true);
-      if (res.isValid) expect(res.original).toBe(VALID_ETH);
+      if (res.isValid) expect(res.original).toBe(EVM_VALID_CHECKSUMMED);
     });
   });
 
@@ -310,12 +313,12 @@ describe('validateAny', () => {
 
   describe('negative - matched route but invalid', () => {
     it('returns EVM checksum error for invalid EIP‑55 address', () => {
-      const res = validateAny(INVALID_EVM_CHECKSUM);
+      const res = validateAny(EVM_INVALID_CHECKSUM_DIGIT);
       expect(res.isValid).toBe(false);
       if (!res.isValid) {
         expect(res.code).toBe(ValidationErrorCodes.INVALID_CHECKSUM);
         expect(res.message).toContain('checksum');
-        expect(res.original).toBe(INVALID_EVM_CHECKSUM);
+        expect(res.original).toBe(EVM_INVALID_CHECKSUM_DIGIT);
       }
     });
 
@@ -540,10 +543,10 @@ describe('validateAny', () => {
 describe('validateAnyBatch', () => {
   it('processes a mix of valid and invalid items', () => {
     const results = validateAnyBatch([
-      VALID_ETH,
+      EVM_VALID_CHECKSUMMED,
       'garbage',
       {address: VALID_BTC_BECH32, id: 'btc-field'},
-      INVALID_EVM_CHECKSUM,
+      EVM_INVALID_CHECKSUM_DIGIT,
     ]);
 
     expect(results).toHaveLength(4);
@@ -554,7 +557,7 @@ describe('validateAnyBatch', () => {
       expect(results[0].chains).toContain('Ethereum');
       expect(results[0].index).toBe(0);
       expect(results[0].id).toBeUndefined();
-      expect(results[0].original).toBe(VALID_ETH);
+      expect(results[0].original).toBe(EVM_VALID_CHECKSUMMED);
     }
 
     // garbage
@@ -578,7 +581,7 @@ describe('validateAnyBatch', () => {
     if (!results[3].isValid) {
       expect(results[3].code).toBe(ValidationErrorCodes.INVALID_CHECKSUM);
       expect(results[3].index).toBe(3);
-      expect(results[3].original).toBe(INVALID_EVM_CHECKSUM);
+      expect(results[3].original).toBe(EVM_INVALID_CHECKSUM_DIGIT);
     }
   });
 
@@ -603,8 +606,8 @@ describe('validateAnyBatch', () => {
   });
 
   it('trims the original input', () => {
-    const results = validateAnyBatch([`  ${VALID_ETH}  `]);
-    expect(results[0].original).toBe(VALID_ETH);
+    const results = validateAnyBatch([`  ${EVM_VALID_CHECKSUMMED}  `]);
+    expect(results[0].original).toBe(EVM_VALID_CHECKSUMMED);
   });
 
   it('returns chain-specific failures with the trimmed original', () => {
@@ -620,14 +623,14 @@ describe('validateAnyBatch', () => {
   });
 
   it('keeps single and batch original consistent', () => {
-    const input = `  ${VALID_ETH}  `;
+    const input = `  ${EVM_VALID_CHECKSUMMED}  `;
     const single = validateAny(input);
     const [batched] = validateAnyBatch([input]);
 
     expect(single.isValid).toBe(true);
     expect(batched.isValid).toBe(true);
     expect(batched.original).toBe(single.original);
-    expect(batched.original).toBe(VALID_ETH);
+    expect(batched.original).toBe(EVM_VALID_CHECKSUMMED);
   });
 
   it('omits id for strings and includes it for objects', () => {

@@ -10,8 +10,16 @@ import {
   isTronAddress,
   isXRPAddress,
 } from '../../src/utils/addressFormats';
+import {
+  EVM_INVALID_CHECKSUM_LETTER,
+  EVM_VALID_CHECKSUMMED,
+  EVM_VALID_LEADING_ZERO,
+  EVM_VALID_LOWERCASE,
+  EVM_VALID_UPPERCASE,
+  EVM_VALID_UPPERCASE_PREFIX,
+  EVM_ZERO_ADDRESS,
+} from '../fixtures/evm';
 
-const VALID_ETH = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 const VALID_BTC_BECH32M =
   'bc1pgn0mhnu0aqe888sqh5mewlvt26gcr4v6d886qt3hxxfspuwpqx2q4xk59v';
 const VALID_LTC_P2PKH = 'LaMZFeV1XdQ6yo8AzdrUHPrgKyfFmMG53b';
@@ -25,21 +33,30 @@ const VALID_XLM_MUXED =
 describe('address format predicates', () => {
   describe('EVM', () => {
     it('accepts 0x and 0X prefixes', () => {
-      expect(isEVMAddress(VALID_ETH)).toBe(true);
-      expect(isEVMAddress('0X' + VALID_ETH.slice(2))).toBe(true);
+      expect(isEVMAddress(EVM_VALID_CHECKSUMMED)).toBe(true);
+      expect(isEVMAddress(EVM_VALID_UPPERCASE_PREFIX)).toBe(true);
     });
 
     it('accepts all-lowercase and all-uppercase hex', () => {
-      expect(isEVMAddress(VALID_ETH.toLowerCase())).toBe(true);
-      expect(isEVMAddress(VALID_ETH.toUpperCase())).toBe(true);
+      expect(isEVMAddress(EVM_VALID_LOWERCASE)).toBe(true);
+      expect(isEVMAddress(EVM_VALID_UPPERCASE)).toBe(true);
     });
 
     it('rejects wrong length, prefix, and non-hex characters', () => {
       expect(isEVMAddress('0x1234')).toBe(false);
       expect(isEVMAddress('0x' + 'a'.repeat(39))).toBe(false);
       expect(isEVMAddress('0x' + 'a'.repeat(41))).toBe(false);
-      expect(isEVMAddress('1x' + VALID_ETH.slice(2))).toBe(false);
+      expect(isEVMAddress('1x' + EVM_VALID_CHECKSUMMED.slice(2))).toBe(false);
       expect(isEVMAddress('0x' + 'g'.repeat(40))).toBe(false);
+    });
+
+    it('accepts checksum-invalid but format-valid shapes (the router must reach the checksum)', () => {
+      expect(isEVMAddress(EVM_INVALID_CHECKSUM_LETTER)).toBe(true);
+    });
+
+    it('accepts leading-zero and zero addresses', () => {
+      expect(isEVMAddress(EVM_VALID_LEADING_ZERO)).toBe(true);
+      expect(isEVMAddress(EVM_ZERO_ADDRESS)).toBe(true);
     });
   });
 
@@ -65,7 +82,7 @@ describe('address format predicates', () => {
     });
 
     it('rejects other chains and random strings', () => {
-      expect(isBitcoinAddress(VALID_ETH)).toBe(false);
+      expect(isBitcoinAddress(EVM_VALID_CHECKSUMMED)).toBe(false);
       expect(
         isBitcoinAddress('ltc1qv43gel3n5hktls3tl0rpz3qrt98t0pavgaec9w')
       ).toBe(false);
@@ -103,7 +120,7 @@ describe('address format predicates', () => {
     });
 
     it('rejects other chains', () => {
-      expect(isLitecoinAddress(VALID_ETH)).toBe(false);
+      expect(isLitecoinAddress(EVM_VALID_CHECKSUMMED)).toBe(false);
       expect(
         isLitecoinAddress('bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4')
       ).toBe(false);

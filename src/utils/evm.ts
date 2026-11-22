@@ -24,7 +24,7 @@ export const getEVMLogic =
     if (address[0] !== '0' || (address[1] !== 'x' && address[1] !== 'X')) {
       return failure({
         code: ValidationErrorCodes.INVALID_PREFIX,
-        message: `Invalid ${label} address prefix (must start with 0x)`,
+        message: `Invalid ${label} address prefix (must start with 0x or 0X)`,
       });
     }
 
