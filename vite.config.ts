@@ -3,13 +3,6 @@ import {defineConfig} from 'vite-plus';
 import {ENTRIES} from './scripts/entries.ts';
 
 export default defineConfig({
-  test: {
-    // Vitest v4 compatibility: preserve mock call history.
-    // Remove after tests no longer rely on calls from setup or earlier tests.
-    // https://viteplus.dev/guide/vitest-v5#remove-unneeded-compatibility-settings
-    // https://vitest.dev/guide/migration/#clearmocks-is-enabled-by-default
-    clearMocks: false,
-  },
   staged: {
     '*': 'vp check --fix',
   },
@@ -24,21 +17,20 @@ export default defineConfig({
     // A neutral platform otherwise defaults fixedExtension to false,
     // renaming outputs to .js/.d.ts and breaking the exports map.
     fixedExtension: true,
-    deps: {
-      // tsdown <0.23 compatibility: resolve external dependency subpaths.
-      // Remove to preserve subpath imports as written (the new default).
-      // https://tsdown.dev/options/dependencies#deps-resolvedepsubpath
-      resolveDepSubpath: true,
-    },
     entry: ENTRIES,
     format: ['esm', 'cjs'],
     dts: {
       generator: 'tsgo',
+      // tsdown 0.23.4 appends a sourceMappingURL to declaration files when
+      // `sourcemap` is enabled but only emits the matching .map files when
+      // this option is set. Remove once Vite+ bundles tsdown >= 0.23.7.
+      sourcemap: true,
     },
     unbundle: true,
     clean: true,
-    treeshake: true,
     minify: true,
+    // Publish JavaScript source maps for both ESM and CJS outputs.
+    sourcemap: true,
     publint: true,
     attw: {
       profile: 'node16',
