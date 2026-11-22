@@ -1,4 +1,5 @@
 import type {ValidationResult} from '../types';
+import type {ValidationOutcome} from '../utils/createValidator';
 
 import {base58} from '../utils/base58';
 import {createBatchValidator} from '../utils/createBatchValidator';
@@ -26,13 +27,12 @@ export type SOLValidationResult = ValidationResult<SolanaAddressType>;
  * @param address - The Solana address to validate.
  * @returns A `ValidationResult` indicating whether the address is valid and, if valid, its detected type.
  */
-export const validateSOL = createValidator<SOLValidationResult>(
-  (address, context): SOLValidationResult => {
+export const validateSOL = createValidator<SolanaAddressType>(
+  (address, context): ValidationOutcome<SolanaAddressType> => {
     if (address.length < 32 || address.length > 44) {
       return context.failure({
         code: ValidationErrorCodes.INVALID_LENGTH,
         message: 'Invalid address length (expected 32-44 characters)',
-        original: address,
       });
     }
 
@@ -41,7 +41,6 @@ export const validateSOL = createValidator<SOLValidationResult>(
       return context.failure({
         code: ValidationErrorCodes.INVALID_ENCODING,
         message: 'Invalid Base58 encoding',
-        original: address,
       });
     }
 
@@ -49,14 +48,12 @@ export const validateSOL = createValidator<SOLValidationResult>(
       return context.failure({
         code: ValidationErrorCodes.INVALID_FORMAT,
         message: 'Decoded public key must be exactly 32 bytes',
-        original: address,
       });
     }
 
     return context.success({
       type: 'Solana',
       address,
-      original: address,
     });
   }
 );

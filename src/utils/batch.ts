@@ -1,50 +1,37 @@
-import type {
-  ValidationResult,
-  BatchItem,
-  BatchValidationResult,
-} from '../types';
+import type {BatchItem, BatchResult} from '../types';
 
 /**
  * Validates every address in `items` with the supplied validator.
  *
- * Processes all items (no short‑circuiting). Malformed or missing
- * addresses are treated as empty strings — the validator will reject
- * them, so no runtime errors are thrown.
+ * Processes all items (no short‑circuiting). Malformed or missing addresses
+ * are converted to empty strings — the validator rejects them with `EMPTY`,
+ * so no runtime errors are thrown. The validator's result is spread unchanged,
+ * including its trimmed `original` field.
+ *
+ * `Array.from` is used instead of `map` so sparse-array holes are visited and
+ * reported as empty addresses rather than disappearing from the results.
  *
  * @param validate - A single‑address validator (e.g., `validateBTC`).
  * @param items    - Addresses or {@link BatchItem} objects.
  * @returns Results in the same order as the input array.
+ * @throws {TypeError} When `items` is not an array.
  */
-export function batch<T extends string>(
-  validate: (address: string) => ValidationResult<T>,
+export function batch<R extends {original: string}>(
+  validate: (address: string) => R,
   items: readonly BatchItem[]
-): BatchValidationResult<T>[] {
-  return items.map((item, index) => {
-    const input = toInputAddress(item);
+): BatchResult<R>[] {
+  if (!Array.isArray(items)) {
+    throw new TypeError('Expected an array of BatchItem values');
+  }
+
+  return Array.from(items, (item, index) => {
+    const result = validate(toInputAddress(item));
     const id = toId(item);
-    const result = validate(input);
-    const original = input.trim();
-
-    const base = {
-      original,
-      index,
-      ...(id !== undefined && {id}),
-    } as const;
-
-    if (result.isValid) {
-      return {
-        ...base,
-        isValid: true,
-        type: result.type,
-        address: result.address,
-      };
-    }
 
     return {
-      ...base,
-      isValid: false,
-      code: result.code,
-      message: result.message,
+      ...result,
+      index,
+      ...(id === undefined ? {} : {id}),
     };
   });
 }

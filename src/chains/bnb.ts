@@ -22,9 +22,7 @@ export type BNBValidationResult = ValidationResult<BNBAddressType>;
  * @param address - The BNB address to validate.
  * @returns A `ValidationResult` indicating whether the address is valid and, if valid, its detected type.
  */
-export const validateBNB = createValidator<BNBValidationResult>(
-  getEVMLogic('BNB')
-);
+export const validateBNB = createValidator<BNBAddressType>(getEVMLogic('BNB'));
 
 /**
  * Validates a batch of BNB Smart Chain addresses.

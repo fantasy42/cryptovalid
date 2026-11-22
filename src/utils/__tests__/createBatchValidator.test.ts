@@ -1,4 +1,4 @@
-import type {ValidationResult, BatchItem} from '../../types';
+import type {BatchItem} from '../../types';
 
 import {describe, it, expect} from 'vite-plus/test';
 
@@ -7,20 +7,17 @@ import {createBatchValidator} from '../createBatchValidator';
 import {createValidator} from '../createValidator';
 import {ValidationErrorCodes} from '../../constants';
 
-const okValidator = createValidator<ValidationResult<'Ok'>>((address) => ({
+const okValidator = createValidator<'Ok'>((address) => ({
   isValid: true,
   type: 'Ok',
   address,
-  original: address,
 }));
 
-const failValidator = createValidator<ValidationResult<'Fail'>>(
-  (address, ctx) =>
-    ctx.failure({
-      code: ValidationErrorCodes.UNSUPPORTED_TYPE,
-      message: 'always invalid',
-      original: address,
-    })
+const failValidator = createValidator<'Fail'>((_, ctx) =>
+  ctx.failure({
+    code: ValidationErrorCodes.UNSUPPORTED_TYPE,
+    message: 'always invalid',
+  })
 );
 
 describe('createBatchValidator', () => {
@@ -43,6 +40,7 @@ describe('createBatchValidator', () => {
     if (!results[0].isValid) {
       expect(results[0].code).toBe(ValidationErrorCodes.UNSUPPORTED_TYPE);
       expect(results[0].message).toBe('always invalid');
+      expect(results[0].original).toBe('x');
     }
   });
 
@@ -61,10 +59,13 @@ describe('createBatchValidator', () => {
     expect(results[1].id).toBeUndefined();
   });
 
-  it('returns the same result shape as direct batch()', () => {
+  it('delegates to the shared batch helper for mixed items', () => {
+    const items: BatchItem[] = [
+      'ok',
+      {address: '', id: 'empty-field'},
+      {address: '  padded  ', id: 0},
+    ];
     const batchFn = createBatchValidator(okValidator);
-    const direct = batch(okValidator, ['test']);
-    const fromFactory = batchFn(['test']);
-    expect(fromFactory).toEqual(direct);
+    expect(batchFn(items)).toEqual(batch(okValidator, items));
   });
 });

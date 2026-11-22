@@ -1,8 +1,9 @@
 import type {ValidationErrorCode} from '../constants';
+import type {ValidationFailure} from '../types';
 
 import {ValidationErrorCodes} from '../constants';
 
-type PrevalidateResult =
+export type PrevalidateResult =
   | {
       ok: true;
       value: string;
@@ -13,6 +14,8 @@ type PrevalidateResult =
       message: string;
       original: string;
     };
+
+export type PrevalidateFailure = Extract<PrevalidateResult, {ok: false}>;
 
 const MAX_ADDRESS_LENGTH = 256;
 
@@ -65,4 +68,21 @@ export function prevalidate(raw: unknown): PrevalidateResult {
   }
 
   return {ok: true, value: trimmed};
+}
+
+/**
+ * Converts a prevalidation failure into the shared failure result shape.
+ *
+ * Both `createValidator` and the router use this so prevalidation failures
+ * keep the same `isValid`, `code`, `message`, and `original` fields.
+ */
+export function toValidationFailure(
+  failure: PrevalidateFailure
+): ValidationFailure & {original: string} {
+  return {
+    isValid: false,
+    code: failure.code,
+    message: failure.message,
+    original: failure.original,
+  };
 }

@@ -24,6 +24,16 @@ describe.each(evmChains)(
       }
     });
 
+    it('returns the trimmed original with the normalized address', () => {
+      const validAddr = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
+      const result = validate(`  ${validAddr}  `);
+      expect(result.isValid).toBe(true);
+      if (result.isValid) {
+        expect(result.address).toBe(validAddr.toLowerCase());
+        expect(result.original).toBe(validAddr);
+      }
+    });
+
     it('fails with label in error message when checksum is broken', () => {
       const brokenChecksum = '0xd8dA6bF26964aF9D7eEd9e03E53415D37aA96045';
       const result = validate(brokenChecksum);

@@ -14,7 +14,6 @@ import {batch} from './batch';
  */
 export function createBatchValidator<T extends string>(
   validate: (address: string) => ValidationResult<T>
-) {
-  return (items: readonly BatchItem[]): BatchValidationResult<T>[] =>
-    batch(validate, items);
+): (items: readonly BatchItem[]) => BatchValidationResult<T>[] {
+  return (items) => batch(validate, items);
 }

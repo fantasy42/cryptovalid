@@ -6,7 +6,7 @@ Instructions for coding agents working on `cryptovalid`. Keep this file short an
 
 `cryptovalid` is a TypeScript-first address validation library. It validates formats and checksums where applicable, exports a discriminated `ValidationResult`, ships ESM and CommonJS builds with types, and runs in Node.js 22.12+, browsers, workers, and edge runtimes.
 
-The public surface is the chain validators and their batch variants, token aliases, the `validateAny` router on its own subpath, and stable error codes. Do not duplicate that catalog here; read `README.md` or `src/index.ts`.
+The public surface is the chain validators and their batch variants, token aliases, the `validateAny` router on its own subpath, the exported result types, and stable error codes. Do not duplicate that catalog here; read `README.md` or `src/index.ts`.
 
 ## Commands
 
@@ -31,10 +31,10 @@ src/index.ts          root exports (every public entry except `any`)
 src/chains/*.ts       one public entry per chain
 src/aliases/*.ts      token aliases
 src/any/              validateAny router; subpath-only
-src/utils/            codecs, validator factories, prevalidation
+src/utils/            codecs, validator factories, prevalidation, address format predicates
 src/constants.ts      stable error codes
 scripts/entries.ts    entry manifest -> generated package.json exports
-tests/                per-chain and router tests
+tests/                per-chain, router, and type-contract tests
 ```
 
 ## Invariants
@@ -42,10 +42,10 @@ tests/                per-chain and router tests
 1. `scripts/entries.ts` is the source of truth for build entries and generated `exports`. Never hand-edit `package.json` exports; edit the manifest and run `vp run build`. CI checks the generated diff.
 2. `src/chains` and `src/aliases` are entry-only. Every public top-level `.ts` file there must be registered in the manifest. Co-located `*.test.ts` and `*.spec.ts` files are ignored; `index.ts` and `.d.ts` files are rejected. Put helpers in `src/utils` or a subdirectory.
 3. `src/index.ts` must re-export every public entry except `any`, which is subpath-only. `scripts/entries.test.ts` enforces parity.
-4. Every chain validator uses `createValidator`; every chain batch validator uses `createBatchValidator`. The router has its own batch wrapper. Shared input checks live in `src/utils/prevalidate.ts`: string, trimmed, non-empty, at most 256 characters, ASCII 32-126. Do not duplicate them.
-5. Failure results use `ValidationErrorCodes` and a human-readable `message`. `code` is stable; `message` is not. Chain validators and their batch variants return the trimmed `original`; keep that behavior for new chain validators.
-6. Chain validators must not throw on malformed address input. `createValidator` catches exceptions and maps them to `INTERNAL_ERROR`. Batch functions expect an array of `BatchItem` values.
-7. `validateAny` runs the routes whose predicates match, then runs the corresponding validators. When adding a route, make the predicate accept every format the underlying validator accepts, and add cross-chain tests.
+4. Every chain validator uses `createValidator`; every chain batch validator uses `createBatchValidator`. The router batch delegates to the shared `batch` helper. Shared input checks live in `src/utils/prevalidate.ts`: string, trimmed, non-empty, at most 256 characters, ASCII 32-126. Do not duplicate them.
+5. `createValidator` owns `original`: it is the trimmed input when a string is supplied and `''` otherwise. The factory attaches and overrides it; the `ValidationOutcome` type disallows `original`, so validators cannot set it. Failure results use `ValidationErrorCodes` and a human-readable `message`. `code` is stable; `message` is not. Chain validators and their batch variants return the trimmed `original`; keep that behavior for new chain validators. On success, `address` is the validator's canonical form where one exists; otherwise it equals `original`.
+6. Chain validators must not throw on malformed address input. `createValidator` catches exceptions and maps them to `INTERNAL_ERROR`. Batch functions expect an array of `BatchItem` values and throw `TypeError` for non-arrays. Malformed batch items are treated as empty strings and fail with `EMPTY`.
+7. `validateAny` evaluates every route whose predicate matches; it does not short-circuit, so an address can be valid on multiple chains. Route predicates live in `src/utils/addressFormats.ts`; each predicate must accept every format the underlying validator accepts (a superset is fine). Routes are ordered specific-first: narrow prefix/length formats before broad shapes (notably Solana last) to keep a broad route's failure from masking a more specific one where formats are distinct. Prefix-only routes (notably Bitcoin and Litecoin Base58) can still overlap broad Base58 shapes; in that case `validateAny` reports the first matching route's failure. Overlapping predicates are expected; do not merge routes solely to avoid overlap. `evaluateRoutes` catches unexpected predicate/validator throws and returns `INTERNAL_ERROR`; `validateAny.address` is the first successful validator's address in route order. When adding or changing a format, update the predicate and add cross-chain tests.
 8. The root `tsconfig.json` is a file-less solution (`files: []`) with shared compiler options. Do not populate `files` or add `include`. `tsconfig.lib.json` covers shipped source with no Node or DOM globals; `tsconfig.node.json` adds Node types for tests, scripts, and `vite.config.ts`. The build uses `tsconfig.lib.json`.
 9. Checksum code (Base58Check, Bech32, EIP-55, CRC16) is security-critical. Changes require expanded reference vectors, a clear explanation of why validation is not weakened, and maintainer review. Adding an address type is compatible; rejecting previously valid addresses requires a major version.
 10. Do not add runtime dependencies casually. The only current runtime dependency is `@noble/hashes`.
@@ -56,7 +56,7 @@ tests/                per-chain and router tests
 2. Register it in `scripts/entries.ts` with a lowercase kebab-case name that matches the file name.
 3. Re-export the values and types from `src/index.ts`.
 4. Update the expected entry list in `scripts/entries.test.ts`.
-5. Add a predicate and validator entries to `src/any/routes.ts`. If the format overlaps an existing route, merge it instead of creating an ambiguous route.
+5. Add a predicate to `src/utils/addressFormats.ts`, a route entry to `src/any/routes.ts`, and a chain name to `SupportedChain`. Order specific formats before broad ones; overlapping routes are fine because every matching route is evaluated.
 6. Add `tests/<name>.test.ts` and cases in `tests/any.test.ts` for valid addresses, invalid addresses, and cross-chain isolation.
 7. Update the supported-chains table in `README.md`.
 8. Run `vp run check:entries`, `vp test`, and `vp run build`.
@@ -64,9 +64,9 @@ tests/                per-chain and router tests
 ## Tests
 
 - Chain tests live in `tests/*.test.ts`. Internal utility tests live in `src/utils/__tests__/`.
-- Batch behavior is covered by the generic `src/utils/__tests__/batch.test.ts`. The router has `tests/any.test.ts`.
+- Batch behavior is covered by the generic `src/utils/__tests__/batch.test.ts`. The router has `tests/any.test.ts`; all public result aliases (single-item and batch) and both no-`original` outcome branches are pinned in `tests/types.test.ts`.
 - New validators need positive cases, negative cases (length, charset, checksum, wrong network), and edge cases (empty, whitespace, maximum length, leading zeros).
-- Assert `result.code` and `result.message` on failure, not an `error` string. Assert `original` only where it documents trimming or null input.
+- Assert `result.code` and `result.message` on failure, not an `error` string. Assert `original` only where it documents trimming, case preservation, the factory-owned contract, or null input.
 - Aim for 95% line coverage on validator and utility logic. Coverage is a target, not an enforced gate today.
 
 ## CI and Release

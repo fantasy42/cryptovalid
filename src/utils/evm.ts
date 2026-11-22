@@ -1,5 +1,4 @@
-import type {ValidationContext} from './createValidator';
-import type {ValidationResult} from '../types';
+import type {ValidationContext, ValidationOutcome} from './createValidator';
 
 import {keccak_256} from '@noble/hashes/sha3.js';
 import {ValidationErrorCodes} from '../constants';
@@ -14,20 +13,18 @@ export const getEVMLogic =
   <T extends string>(label: T) =>
   (
     address: string,
-    {success, failure}: ValidationContext
-  ): ValidationResult<T> => {
+    {success, failure}: ValidationContext<T>
+  ): ValidationOutcome<T> => {
     if (address.length !== 42) {
       return failure({
         code: ValidationErrorCodes.INVALID_LENGTH,
         message: `Invalid ${label} address length (expected 42, got ${address.length})`,
-        original: address,
       });
     }
     if (address[0] !== '0' || (address[1] !== 'x' && address[1] !== 'X')) {
       return failure({
         code: ValidationErrorCodes.INVALID_PREFIX,
         message: `Invalid ${label} address prefix (must start with 0x)`,
-        original: address,
       });
     }
 
@@ -36,7 +33,6 @@ export const getEVMLogic =
       return failure({
         code: ValidationErrorCodes.INVALID_FORMAT,
         message: 'Invalid hexadecimal characters',
-        original: address,
       });
     }
 
@@ -63,7 +59,6 @@ export const getEVMLogic =
           return failure({
             code: ValidationErrorCodes.INVALID_CHECKSUM,
             message: `Invalid ${label} checksum (EIP-55)`,
-            original: address,
           });
         }
       }
@@ -72,6 +67,5 @@ export const getEVMLogic =
     return success({
       type: label,
       address: `0x${hexPart.toLowerCase()}`,
-      original: address,
     });
   };

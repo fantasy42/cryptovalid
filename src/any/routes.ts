@@ -1,5 +1,17 @@
-import type {ValidationResult} from '../types';
+import type {ValidationFailure, ValidationResult} from '../types';
+import type {AnyValidationResult, SupportedChain} from './types';
 
+import {
+  isBitcoinAddress,
+  isEVMAddress,
+  isLitecoinAddress,
+  isSolanaAddress,
+  isStellarAddress,
+  isTONAddress,
+  isTronAddress,
+  isXRPAddress,
+} from '../utils/addressFormats';
+import {ValidationErrorCodes} from '../constants';
 import {validatePolygon} from '../chains/polygon';
 import {validateBTC} from '../chains/btc';
 import {validateETH} from '../chains/eth';
@@ -12,66 +24,141 @@ import {validateXLM} from '../chains/xlm';
 import {validateTON} from '../chains/ton';
 
 interface ValidatorEntry {
-  chain: string;
+  chain: SupportedChain;
   validate: (addr: string) => ValidationResult<string>;
 }
 
-interface Route {
+export interface Route {
   predicate: (addr: string) => boolean;
-  validators: ValidatorEntry[];
+  validators: readonly ValidatorEntry[];
 }
 
-const EVM_REGEX = /^0x[0-9a-fA-F]{40}$/;
-const BTC_LTC_REGEX = /^(1|3|bc1|L|M|ltc1)/;
-const SOL_REGEX = /^[1-9A-HJ-NP-Za-km-z]{43,45}$/;
-const TRX_REGEX = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
-const XRP_REGEX =
-  /^(r[1-9A-HJ-NP-Za-km-z]{24,34}|X[1-9A-HJ-NP-Za-km-z]{46,58})$/;
-const XLM_REGEX = /^G[A-Z2-7]{55}$|^M[A-Z2-7]{68}$/;
-const TON_REGEX = /^(0|-1):[0-9a-fA-F]{64}$|^[EU][Qf][0-9a-zA-Z\-_]{46}$/;
+/**
+ * Evaluates a prevalidated, trimmed address against the supplied routes.
+ *
+ * Every matching route is evaluated; there is no short-circuiting, so an
+ * address can be reported as valid on multiple chains. Internal errors thrown
+ * by a predicate or validator are mapped to `INTERNAL_ERROR`, matching the
+ * single-validator factory.
+ *
+ * @param address - A prevalidated, trimmed address.
+ * @param routes  - Ordered route table to evaluate.
+ * @returns The router result with all matching chains or the first failure.
+ */
+export function evaluateRoutes(
+  address: string,
+  routes: readonly Route[]
+): AnyValidationResult {
+  try {
+    const chains: SupportedChain[] = [];
+    let firstFailure: ValidationFailure | undefined;
+    let anyRouteMatched = false;
+    let normalizedAddress = address;
 
-export const ROUTES: Route[] = [
+    for (const route of routes) {
+      if (!route.predicate(address)) {
+        continue;
+      }
+      anyRouteMatched = true;
+
+      for (const {chain, validate} of route.validators) {
+        const result = validate(address);
+
+        if (result.isValid) {
+          chains.push(chain);
+          if (chains.length === 1) {
+            normalizedAddress = result.address;
+          }
+        } else if (!firstFailure) {
+          firstFailure = {
+            isValid: false,
+            code: result.code,
+            message: result.message,
+          };
+        }
+      }
+    }
+
+    if (chains.length > 0) {
+      return {
+        isValid: true,
+        chains,
+        address: normalizedAddress,
+        original: address,
+      };
+    }
+
+    if (!anyRouteMatched) {
+      return {
+        isValid: false,
+        code: ValidationErrorCodes.UNSUPPORTED_TYPE,
+        message: 'Address format not recognized',
+        original: address,
+      };
+    }
+
+    return firstFailure
+      ? {...firstFailure, original: address}
+      : internalFailure(address);
+  } catch {
+    return internalFailure(address);
+  }
+}
+
+function internalFailure(original: string): AnyValidationResult {
+  return {
+    isValid: false,
+    code: ValidationErrorCodes.INTERNAL_ERROR,
+    message: 'Internal validation error',
+    original,
+  };
+}
+
+/**
+ * Route table, ordered most-specific first.
+ *
+ * Predicates intentionally overlap: every matching route is evaluated, so a
+ * `3...` P2SH address is valid on both Bitcoin and Litecoin. The broad Solana
+ * shape is checked last so its failure cannot mask a more specific chain's
+ * error. See `addressFormats.ts` for the predicate definitions.
+ */
+export const ROUTES: readonly Route[] = [
   // EVM family – most common, checked first
   {
-    predicate: (addr) => EVM_REGEX.test(addr),
+    predicate: isEVMAddress,
     validators: [
       {chain: 'Ethereum', validate: validateETH},
       {chain: 'BNB', validate: validateBNB},
       {chain: 'Polygon', validate: validatePolygon},
     ],
   },
-  // Bitcoin & Litecoin – unified route to avoid overlapping P2SH (3…) ambiguity.
-  // Both validators are run; success on either marks the address valid for that chain.
   {
-    predicate: (addr) => BTC_LTC_REGEX.test(addr),
-    validators: [
-      {chain: 'Bitcoin', validate: validateBTC},
-      {chain: 'Litecoin', validate: validateLTC},
-    ],
+    predicate: isBitcoinAddress,
+    validators: [{chain: 'Bitcoin', validate: validateBTC}],
   },
-  // Solana
   {
-    predicate: (addr) => SOL_REGEX.test(addr),
-    validators: [{chain: 'Solana', validate: validateSOL}],
+    predicate: isLitecoinAddress,
+    validators: [{chain: 'Litecoin', validate: validateLTC}],
   },
-  // TRON
   {
-    predicate: (addr) => TRX_REGEX.test(addr),
+    predicate: isTronAddress,
     validators: [{chain: 'TRON', validate: validateTRX}],
   },
-  // XRP
   {
-    predicate: (addr) => XRP_REGEX.test(addr),
+    predicate: isXRPAddress,
     validators: [{chain: 'XRP', validate: validateXRP}],
   },
-  // Stellar
   {
-    predicate: (addr) => XLM_REGEX.test(addr),
+    predicate: isStellarAddress,
     validators: [{chain: 'Stellar', validate: validateXLM}],
   },
-  // TON
   {
-    predicate: (addr) => TON_REGEX.test(addr),
+    predicate: isTONAddress,
     validators: [{chain: 'TON', validate: validateTON}],
+  },
+  // Broadest Base58 shape; keep last so it does not win failure precedence.
+  {
+    predicate: isSolanaAddress,
+    validators: [{chain: 'Solana', validate: validateSOL}],
   },
 ];

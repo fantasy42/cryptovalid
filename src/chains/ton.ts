@@ -1,4 +1,5 @@
 import type {ValidationResult} from '../types';
+import type {ValidationOutcome} from '../utils/createValidator';
 
 import {crc16Ton} from '../utils/crc16';
 import {createBatchValidator} from '../utils/createBatchValidator';
@@ -37,15 +38,14 @@ const FRIENDLY_REGEXP = /^[A-Za-z0-9+/_-]{48}$/;
  * @param address - The TON address to validate.
  * @returns A `ValidationResult` indicating whether the address is valid and, if valid, its detected type.
  */
-export const validateTON = createValidator<TONValidationResult>(
-  (address, context): TONValidationResult => {
+export const validateTON = createValidator<TONAddressType>(
+  (address, context): ValidationOutcome<TONAddressType> => {
     if (address.includes(':')) {
       const match = RAW_REGEXP.exec(address);
       if (!match) {
         return context.failure({
           code: ValidationErrorCodes.INVALID_FORMAT,
           message: 'Invalid Raw address structure or malformed hex payload',
-          original: address,
         });
       }
 
@@ -56,14 +56,12 @@ export const validateTON = createValidator<TONValidationResult>(
         return context.failure({
           code: ValidationErrorCodes.INVALID_FORMAT,
           message: 'Invalid workchain identifier',
-          original: address,
         });
       }
 
       return context.success({
         type: 'Raw',
         address,
-        original: address,
       });
     }
 
@@ -75,7 +73,6 @@ export const validateTON = createValidator<TONValidationResult>(
         return context.failure({
           code: ValidationErrorCodes.INVALID_ENCODING,
           message: 'Malformed user-friendly base64 encoding payload',
-          original: address,
         });
       }
 
@@ -91,7 +88,6 @@ export const validateTON = createValidator<TONValidationResult>(
         return context.failure({
           code: ValidationErrorCodes.INVALID_CHECKSUM,
           message: 'Invalid address checksum',
-          original: address,
         });
       }
 
@@ -107,7 +103,6 @@ export const validateTON = createValidator<TONValidationResult>(
         return context.failure({
           code: ValidationErrorCodes.INVALID_FORMAT,
           message: 'Unknown user-friendly address serialization tag',
-          original: address,
         });
       }
 
@@ -127,14 +122,12 @@ export const validateTON = createValidator<TONValidationResult>(
       return context.success({
         type: resolvedType,
         address,
-        original: address,
       });
     }
 
     return context.failure({
       code: ValidationErrorCodes.UNSUPPORTED_TYPE,
       message: 'Unsupported TON address format or character set',
-      original: address,
     });
   }
 );

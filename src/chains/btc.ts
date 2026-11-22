@@ -1,5 +1,8 @@
 import type {ValidationResult} from '../types';
-import type {ValidationContext} from '../utils/createValidator';
+import type {
+  ValidationContext,
+  ValidationOutcome,
+} from '../utils/createValidator';
 
 import {bech32, bech32m, fromWordsUnsafe} from '../utils/bech32';
 import {base58} from '../utils/base58';
@@ -27,8 +30,8 @@ export type BTCValidationResult = ValidationResult<BitcoinAddressType>;
  * @param address - The Bitcoin address to validate.
  * @returns A `ValidationResult` indicating whether the address is valid and, if valid, its detected type.
  */
-export const validateBTC = createValidator<BTCValidationResult>(
-  (address, context): BTCValidationResult => {
+export const validateBTC = createValidator<BitcoinAddressType>(
+  (address, context): ValidationOutcome<BitcoinAddressType> => {
     const lowerAddr = address.toLowerCase();
 
     if (lowerAddr.startsWith('bc1')) {
@@ -42,7 +45,6 @@ export const validateBTC = createValidator<BTCValidationResult>(
     return context.failure({
       code: ValidationErrorCodes.UNSUPPORTED_TYPE,
       message: 'Unsupported address format or prefix',
-      original: address,
     });
   }
 );
@@ -60,13 +62,12 @@ export const validateBTCBatch = createBatchValidator(validateBTC);
 function validateBech32(
   original: string,
   lower: string,
-  {success, failure}: ValidationContext
-): BTCValidationResult {
+  {success, failure}: ValidationContext<BitcoinAddressType>
+): ValidationOutcome<BitcoinAddressType> {
   if (original !== lower && original !== original.toUpperCase()) {
     return failure({
       code: ValidationErrorCodes.MIXED_CASE,
       message: 'Mixed case is invalid for Bech32',
-      original,
     });
   }
 
@@ -84,7 +85,6 @@ function validateBech32(
       return failure({
         code: ValidationErrorCodes.INVALID_CHECKSUM,
         message: 'Invalid Bech32/Bech32m checksum or encoding',
-        original,
       });
     }
   }
@@ -93,7 +93,6 @@ function validateBech32(
     return failure({
       code: ValidationErrorCodes.INVALID_PREFIX,
       message: 'Invalid human-readable part (HRP) for Bitcoin',
-      original,
     });
   }
 
@@ -101,7 +100,6 @@ function validateBech32(
     return failure({
       code: ValidationErrorCodes.INVALID_FORMAT,
       message: 'Missing witness version byte',
-      original,
     });
   }
 
@@ -111,7 +109,6 @@ function validateBech32(
     return failure({
       code: ValidationErrorCodes.INVALID_VERSION,
       message: 'Invalid witness version (must be 0-16)',
-      original,
     });
   }
 
@@ -119,7 +116,6 @@ function validateBech32(
     return failure({
       code: ValidationErrorCodes.INVALID_ENCODING,
       message: 'Version 0 must use Bech32 encoding',
-      original,
     });
   }
 
@@ -127,7 +123,6 @@ function validateBech32(
     return failure({
       code: ValidationErrorCodes.INVALID_ENCODING,
       message: 'Version 1+ must use Bech32m encoding',
-      original,
     });
   }
 
@@ -137,7 +132,6 @@ function validateBech32(
     return failure({
       code: ValidationErrorCodes.INVALID_FORMAT,
       message: 'Invalid witness program padding (non-zero padding bits)',
-      original,
     });
   }
 
@@ -150,28 +144,25 @@ function validateBech32(
       code: ValidationErrorCodes.INVALID_LENGTH,
       message:
         'Invalid witness program length for version 0 (must be 20 or 32 bytes)',
-      original,
     });
   }
 
   return success({
     type: witnessVersion === 0 ? 'Bech32' : 'Bech32m',
     address: lower,
-    original: lower,
   });
 }
 
 function validateBase58(
   address: string,
-  {success, failure}: ValidationContext
-): BTCValidationResult {
+  {success, failure}: ValidationContext<BitcoinAddressType>
+): ValidationOutcome<BitcoinAddressType> {
   const result = base58Check(address, {codec: base58});
 
   if (!result.isValid) {
     return failure({
       code: mapBase58CheckError(result.code),
       message: result.message,
-      original: address,
     });
   }
 
@@ -183,7 +174,6 @@ function validateBase58(
     return failure({
       code: ValidationErrorCodes.UNSUPPORTED_TYPE,
       message: 'Unsupported Bitcoin address version',
-      original: address,
     });
   }
 
@@ -192,13 +182,11 @@ function validateBase58(
       code: ValidationErrorCodes.INVALID_LENGTH,
       message:
         'Invalid public key hash or script hash length (must be 20 bytes)',
-      original: address,
     });
   }
 
   return success({
     type: isP2PKH ? 'P2PKH' : 'P2SH',
     address,
-    original: address,
   });
 }

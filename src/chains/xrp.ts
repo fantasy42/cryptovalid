@@ -1,4 +1,5 @@
 import type {ValidationResult} from '../types';
+import type {ValidationOutcome} from '../utils/createValidator';
 
 import {base58Xrp} from '../utils/base58';
 import {base58Check, mapBase58CheckError} from '../utils/base58Check';
@@ -26,14 +27,13 @@ export type XRPValidationResult = ValidationResult<XRPAddressType>;
  * @param address - The XRP address to validate.
  * @returns A `ValidationResult` indicating whether the address is valid and, if valid, its detected type.
  */
-export const validateXRP = createValidator<XRPValidationResult>(
-  (address, {failure, success}) => {
+export const validateXRP = createValidator<XRPAddressType>(
+  (address, {failure, success}): ValidationOutcome<XRPAddressType> => {
     if (address.startsWith('r')) {
       if (address.length < 25 || address.length > 35) {
         return failure({
           code: ValidationErrorCodes.INVALID_LENGTH,
           message: 'Invalid Classic address length',
-          original: address,
         });
       }
 
@@ -46,7 +46,6 @@ export const validateXRP = createValidator<XRPValidationResult>(
         return failure({
           code: mapBase58CheckError(res.code),
           message: res.message,
-          original: address,
         });
       }
 
@@ -54,14 +53,12 @@ export const validateXRP = createValidator<XRPValidationResult>(
         return failure({
           code: ValidationErrorCodes.INVALID_LENGTH,
           message: 'Invalid Classic address payload',
-          original: address,
         });
       }
 
       return success({
         type: 'Classic',
         address,
-        original: address,
       });
     }
 
@@ -70,7 +67,6 @@ export const validateXRP = createValidator<XRPValidationResult>(
         return failure({
           code: ValidationErrorCodes.INVALID_LENGTH,
           message: 'Invalid X-Address string length',
-          original: address,
         });
       }
 
@@ -83,7 +79,6 @@ export const validateXRP = createValidator<XRPValidationResult>(
         return failure({
           code: mapBase58CheckError(res.code),
           message: res.message,
-          original: address,
         });
       }
 
@@ -91,21 +86,18 @@ export const validateXRP = createValidator<XRPValidationResult>(
         return failure({
           code: ValidationErrorCodes.INVALID_LENGTH,
           message: 'Invalid X-Address payload structure',
-          original: address,
         });
       }
 
       return success({
         type: 'X-Address-Mainnet',
         address,
-        original: address,
       });
     }
 
     return failure({
       code: ValidationErrorCodes.INVALID_PREFIX,
       message: 'Unsupported XRP address prefix',
-      original: address,
     });
   }
 );

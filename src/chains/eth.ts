@@ -22,7 +22,7 @@ export type ETHValidationResult = ValidationResult<EthereumAddressType>;
  * @param address - The Ethereum address to validate.
  * @returns A `ValidationResult` indicating whether the address is valid and, if valid, its detected type.
  */
-export const validateETH = createValidator<ETHValidationResult>(
+export const validateETH = createValidator<EthereumAddressType>(
   getEVMLogic('Ethereum')
 );
 

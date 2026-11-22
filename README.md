@@ -3,7 +3,7 @@
 **Lightweight crypto address validator for Bitcoin, Ethereum, Solana, and more.**
 
 - **Stop bad addresses early** - Checksum-aware validation catches typos and malformed input before funds move.
-- **Batch validation** - Validate many addresses at once while keeping the original input, index, and optional id.
+- **Batch validation** - Validate many addresses at once while keeping the trimmed original input, index, and optional id.
 - **Type-safe and fast** - Discriminated union results, synchronous validation, 500+ tests.
 - **Tree-shakeable and small** - Per-chain entry points; import only what you need.
 
@@ -36,7 +36,11 @@ if (result.isValid) {
 }
 ```
 
-Validators trim surrounding whitespace and return failures as values; they do not throw on malformed addresses. Batch helpers expect an array.
+Validators trim surrounding whitespace and return failures as values; they do not throw on malformed addresses. `original` is the trimmed input. The TypeScript API accepts a string; at runtime, any non-string input returns `NULL_OR_UNDEFINED` with `original` set to an empty string.
+
+On success, `address` is the validator's canonical form where one exists — lowercase for Bitcoin/Litecoin Bech32 and `0x` plus lowercase hex for EVM — otherwise it equals `original`. Batch helpers expect an array and throw a `TypeError` otherwise.
+
+The root entry also exports the result building blocks `ValidationSuccess`, `ValidationFailure`, and `BatchResult`. The `cryptovalid/any` entry exports `AnyValidationResult`, `AnyBatchValidationResult`, and `SupportedChain` for typing router results and chain names.
 
 ## Module Formats
 
@@ -61,9 +65,9 @@ All validators listed below also have batch variants (`validateBTCBatch`, `valid
 | Chain        | Validators                         | Accepted formats                            | Integrity                    |
 |--------------|------------------------------------|---------------------------------------------|------------------------------|
 | **Bitcoin**  | `validateBTC`                      | P2PKH, P2SH, Bech32, Bech32m                | Base58Check / Bech32/Bech32m |
-| **Ethereum** | `validateETH`, `validateERC20`     | `0x` + 40 hex                               | EIP-55 (mixed case)          |
-| **BNB**      | `validateBNB`, `validateBEP20`     | `0x` + 40 hex                               | EIP-55 (mixed case)          |
-| **Polygon**  | `validatePolygon`, `validateMatic` | `0x` + 40 hex                               | EIP-55 (mixed case)          |
+| **Ethereum** | `validateETH`, `validateERC20`     | `0x`/`0X` + 40 hex                           | EIP-55 (mixed case)          |
+| **BNB**      | `validateBNB`, `validateBEP20`     | `0x`/`0X` + 40 hex                           | EIP-55 (mixed case)          |
+| **Polygon**  | `validatePolygon`, `validateMatic` | `0x`/`0X` + 40 hex                           | EIP-55 (mixed case)          |
 | **Solana**   | `validateSOL`                      | Base58, 32-byte key                         | None (format only)           |
 | **TRON**     | `validateTRX`, `validateTRC20`     | Base58Check `T...`                          | Base58Check                  |
 | **Litecoin** | `validateLTC`                      | P2PKH, P2SH, Bech32, Bech32m                | Base58Check / Bech32/Bech32m |
@@ -97,7 +101,7 @@ results.forEach((r) => {
 });
 ```
 
-Each result includes the trimmed `original` input, its position (`index`), and the optional `id` you supplied.
+Each result includes the trimmed `original` input, its position (`index`), and the optional `id` you supplied. Malformed batch items (for example `null` or an object without a string `address`) are treated as empty strings and fail with `EMPTY`.
 
 ## Universal Validation (`validateAny`)
 
@@ -110,7 +114,8 @@ const result = validateAny('0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045');
 
 if (result.isValid) {
   console.log(result.chains);  // ['Ethereum', 'BNB', 'Polygon']
-  console.log(result.address); // normalized lowercase address
+  console.log(result.address); // first successful validator's normalized address
+  console.log(result.original); // trimmed input
 } else {
   console.error(`${result.code}: ${result.message}`);
 }
@@ -118,7 +123,7 @@ if (result.isValid) {
 
 EVM addresses match Ethereum, BNB, and Polygon. A `3...` P2SH address can match both Bitcoin and Litecoin. If you already know the chain, use the chain-specific validator: it is more direct, authoritative, and cheaper.
 
-On failure, `result.code` is `UNSUPPORTED_TYPE` when no format matches, or a chain error such as `INVALID_CHECKSUM`. A batch variant (`validateAnyBatch`) follows the same `{address, id}` pattern as other batch validators.
+On failure, `result.code` is `UNSUPPORTED_TYPE` when no format matches, or the first chain error from a matching route, such as `INVALID_CHECKSUM`. A batch variant (`validateAnyBatch`) follows the same `{address, id}`, trimmed `original`, and `index` pattern as other batch validators.
 
 ## Error Codes
 

@@ -1,4 +1,5 @@
 import type {ValidationResult} from '../types';
+import type {ValidationOutcome} from '../utils/createValidator';
 
 import {decode, encode} from '../utils/base32';
 import {crc16xmodem} from '../utils/crc16';
@@ -26,13 +27,12 @@ export type XLMValidationResult = ValidationResult<StellarAddressType>;
  * @param address - The Stellar address to validate.
  * @returns A `ValidationResult` indicating whether the address is valid and, if valid, its detected type.
  */
-export const validateXLM = createValidator<XLMValidationResult>(
-  (address, context): XLMValidationResult => {
+export const validateXLM = createValidator<StellarAddressType>(
+  (address, context): ValidationOutcome<StellarAddressType> => {
     if (!address.startsWith('G') && !address.startsWith('M')) {
       return context.failure({
         code: ValidationErrorCodes.INVALID_PREFIX,
         message: 'Unsupported address format: must start with G or M',
-        original: address,
       });
     }
 
@@ -40,14 +40,12 @@ export const validateXLM = createValidator<XLMValidationResult>(
       return context.failure({
         code: ValidationErrorCodes.INVALID_LENGTH,
         message: 'Invalid length for standard address (expected 56 characters)',
-        original: address,
       });
     }
     if (address.startsWith('M') && address.length !== 69) {
       return context.failure({
         code: ValidationErrorCodes.INVALID_LENGTH,
         message: 'Invalid length for muxed address (expected 69 characters)',
-        original: address,
       });
     }
 
@@ -58,7 +56,6 @@ export const validateXLM = createValidator<XLMValidationResult>(
       return context.failure({
         code: ValidationErrorCodes.INVALID_ENCODING,
         message: 'Invalid Base32 encoding',
-        original: address,
       });
     }
 
@@ -67,14 +64,12 @@ export const validateXLM = createValidator<XLMValidationResult>(
         return context.failure({
           code: ValidationErrorCodes.INVALID_ENCODING,
           message: 'Invalid Base32 encoding',
-          original: address,
         });
       }
     } catch {
       return context.failure({
         code: ValidationErrorCodes.INVALID_ENCODING,
         message: 'Invalid Base32 encoding',
-        original: address,
       });
     }
 
@@ -85,7 +80,6 @@ export const validateXLM = createValidator<XLMValidationResult>(
       return context.failure({
         code: ValidationErrorCodes.INVALID_LENGTH,
         message: 'Decoded payload too short',
-        original: address,
       });
     }
 
@@ -98,7 +92,6 @@ export const validateXLM = createValidator<XLMValidationResult>(
       return context.failure({
         code: ValidationErrorCodes.INVALID_VERSION,
         message: 'Invalid version byte',
-        original: address,
       });
     }
 
@@ -106,7 +99,6 @@ export const validateXLM = createValidator<XLMValidationResult>(
       return context.failure({
         code: ValidationErrorCodes.INVALID_LENGTH,
         message: 'Invalid public key length',
-        original: address,
       });
     }
 
@@ -118,7 +110,6 @@ export const validateXLM = createValidator<XLMValidationResult>(
       return context.failure({
         code: ValidationErrorCodes.INVALID_CHECKSUM,
         message: 'Checksum mismatch',
-        original: address,
       });
     }
 
@@ -128,7 +119,6 @@ export const validateXLM = createValidator<XLMValidationResult>(
     return context.success({
       type,
       address,
-      original: address,
     });
   }
 );

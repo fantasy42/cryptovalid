@@ -1,6 +1,6 @@
 import {describe, it, expect} from 'vite-plus/test';
 
-import {prevalidate} from '../prevalidate';
+import {prevalidate, toValidationFailure} from '../prevalidate';
 import {ValidationErrorCodes} from '../../constants';
 
 describe('prevalidate', () => {
@@ -82,6 +82,31 @@ describe('prevalidate', () => {
     }
   });
 
+  it('accepts exactly 256 characters after trimming', () => {
+    const address = 'A'.repeat(256);
+    const result = prevalidate(`  ${address}  `);
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.value).toBe(address);
+  });
+
+  it('rejects 257 characters after trimming and keeps the trimmed original', () => {
+    const address = 'A'.repeat(257);
+    const result = prevalidate(`  ${address}  `);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe(ValidationErrorCodes.TOO_LONG);
+      expect(result.original).toBe(address);
+    }
+  });
+
+  it('checks length before character set', () => {
+    const result = prevalidate('A'.repeat(257) + '\x00');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.code).toBe(ValidationErrorCodes.TOO_LONG);
+    }
+  });
+
   describe('non-printable or unicode characters', () => {
     it('rejects a control character', () => {
       const result = prevalidate('0x1234\x00abcd');
@@ -93,6 +118,17 @@ describe('prevalidate', () => {
       }
     });
 
+    it.each([
+      {label: 'DEL', value: 'A\x7f'},
+      {label: 'unit separator', value: 'A\x1f'},
+    ])('rejects $label', ({value}) => {
+      const result = prevalidate(value);
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.code).toBe(ValidationErrorCodes.INVALID_CHARACTERS);
+      }
+    });
+
     it('rejects non-ASCII printable (emoji)', () => {
       const result = prevalidate('😃hello');
       expect(result.ok).toBe(false);
@@ -100,5 +136,38 @@ describe('prevalidate', () => {
         expect(result.code).toBe(ValidationErrorCodes.INVALID_CHARACTERS);
       }
     });
+
+    it('treats non-ASCII edge whitespace as empty after trimming', () => {
+      const result = prevalidate('\u00A0\uFEFF');
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.code).toBe(ValidationErrorCodes.EMPTY);
+    });
+
+    it('rejects non-ASCII whitespace inside the address', () => {
+      const result = prevalidate('A\u00A0B');
+      expect(result.ok).toBe(false);
+      if (!result.ok) {
+        expect(result.code).toBe(ValidationErrorCodes.INVALID_CHARACTERS);
+      }
+    });
+
+    it('trims non-ASCII edge whitespace around a valid address', () => {
+      const result = prevalidate('\u00A0\uFEFFabcdef\uFEFF');
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value).toBe('abcdef');
+    });
+  });
+
+  it('converts a prevalidation failure to the shared failure shape', () => {
+    const result = prevalidate('  ');
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(toValidationFailure(result)).toEqual({
+        isValid: false,
+        code: ValidationErrorCodes.EMPTY,
+        message: 'Address must not be empty or whitespace',
+        original: '',
+      });
+    }
   });
 });

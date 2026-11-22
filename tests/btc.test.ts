@@ -1,6 +1,6 @@
 import {describe, it, expect} from 'vite-plus/test';
 
-import {validateBTC} from '../src/chains/btc';
+import {validateBTC, validateBTCBatch} from '../src/chains/btc';
 import {bech32, bech32m} from '../src/utils/bech32';
 import {ValidationErrorCodes} from '../src/constants';
 
@@ -38,6 +38,29 @@ describe('validateBTC', () => {
       if (result.isValid) {
         expect(result.type).toBe('Bech32m');
       }
+    });
+
+    it('accepts uppercase Bech32 and keeps the trimmed original', () => {
+      const upper = 'BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4';
+      const result = validateBTC(`  ${upper}  `);
+      expect(result.isValid).toBe(true);
+      if (result.isValid) {
+        expect(result.type).toBe('Bech32');
+        expect(result.address).toBe(upper.toLowerCase());
+        expect(result.original).toBe(upper);
+      }
+    });
+
+    it('keeps single and batch original consistent', () => {
+      const upper = 'BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4';
+      const input = `  ${upper}  `;
+      const single = validateBTC(input);
+      const [batched] = validateBTCBatch([input]);
+
+      expect(single.isValid).toBe(true);
+      expect(batched.isValid).toBe(true);
+      expect(batched.original).toBe(single.original);
+      expect(batched.original).toBe(upper);
     });
   });
 

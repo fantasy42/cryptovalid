@@ -22,7 +22,7 @@ export type PolygonValidationResult = ValidationResult<PolygonAddressType>;
  * @param address - The Polygon address to validate.
  * @returns A `ValidationResult` indicating whether the address is valid and, if valid, its detected type.
  */
-export const validatePolygon = createValidator<PolygonValidationResult>(
+export const validatePolygon = createValidator<PolygonAddressType>(
   getEVMLogic('Polygon')
 );
 
