@@ -13,6 +13,11 @@
 npm install cryptovalid
 ```
 
+## Requirements
+
+- **Consumers:** Node.js 22.12 or newer (`engines.node`). Browser, Worker, and Edge runtimes are supported.
+- **Development/CI:** Node.js 24 LTS, pinned in `.node-version`.
+
 ## Basic Usage
 
 ```ts

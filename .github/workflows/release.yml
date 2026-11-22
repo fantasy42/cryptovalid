@@ -12,73 +12,39 @@ on:
           - patch
           - minor
           - major
-          - prepatch
-          - preminor
-          - premajor
-          - prerelease
-  pull_request:
-    types:
-      - closed
+  # Publishing runs from a push to master. npm trusted publishing documents
+  # push/release/workflow_dispatch as supported OIDC events; pull_request is not
+  # one of them.
+  push:
     branches:
       - master
 
 permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
+  contents: read
+
+# A release mutates npm, git tags, and the GitHub release. Serialize pushes so a
+# later push cannot race a release that is still publishing. Dispatches use a
+# separate group: they only open a release PR and must not replace a queued
+# publish run.
+concurrency:
+  group: release-${{ github.event_name }}
+  cancel-in-progress: false
 
 jobs:
   open-release-pr:
     if: github.event_name == 'workflow_dispatch' && github.ref_name == 'master'
     runs-on: ubuntu-latest
-    concurrency:
-      group: release-open-${{ github.ref }}
-      cancel-in-progress: false
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
-
-      - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
-        with:
-          node-version: "lts"
-          cache: true
-
-      - name: Install dependencies
-        run: vp install
-
-      - name: Run checks
-        run: vp check
-
-      - name: Run tests
-        run: vp test
-
-      - name: Configure Git user
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      - name: Bump version with bumpp
-        run: |
-          vp exec bumpp \
-            --release "${{ inputs.release_type }}" \
-            --all \
-            --yes \
-            --no-push \
-            --no-tag \
-            --execute "vp install" \
-            --commit "Bump version to v%s"
-
-      - name: Read version
-        id: version
-        shell: bash
-        run: |
-          version=$(node -e "console.log(JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version)")
-          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Ensure release automation token is configured
         env:
@@ -90,14 +56,66 @@ jobs:
             exit 1
           fi
 
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          node-version-file: .node-version
+
+      - name: Verify lockfile is unchanged
+        run: git diff --exit-code -- pnpm-lock.yaml package.json
+
+      - name: Run checks
+        run: vp check --deny-warnings
+
+      - name: Run tests
+        run: vp test
+
+      - name: Configure Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Bump version with bumpp
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
+        shell: bash
+        run: |
+          case "$RELEASE_TYPE" in
+            patch|minor|major) ;;
+            *)
+              echo "Unsupported release type: $RELEASE_TYPE"
+              exit 1
+              ;;
+          esac
+
+          vp exec bumpp \
+            --release "$RELEASE_TYPE" \
+            --all \
+            --yes \
+            --no-push \
+            --no-tag \
+            --commit "Bump version to v%s"
+
+      - name: Read version
+        id: version
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid package version: $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Push release branch
         id: push_branch
         env:
           RELEASE_PAT: ${{ secrets.RELEASE_PAT }}
+          VERSION: ${{ steps.version.outputs.version }}
         shell: bash
         run: |
-          branch="release/v${{ steps.version.outputs.version }}"
-          git remote set-url origin "https://x-access-token:${RELEASE_PAT}@github.com/${{ github.repository }}.git"
+          branch="release/v$VERSION"
+          git remote set-url origin "https://x-access-token:${RELEASE_PAT}@github.com/${GITHUB_REPOSITORY}.git"
 
           if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
             echo "Branch $branch already exists. Please delete it or choose a different version."
@@ -111,107 +129,308 @@ jobs:
       - name: Create release pull request
         env:
           GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+          VERSION: ${{ steps.version.outputs.version }}
+          BRANCH: ${{ steps.push_branch.outputs.branch }}
         run: |
           gh pr create \
             --base master \
-            --head "${{ steps.push_branch.outputs.branch }}" \
-            --title "Release v${{ steps.version.outputs.version }}" \
+            --head "$BRANCH" \
+            --title "Release v$VERSION" \
             --body "Automated release PR created by GitHub Actions."
 
-  publish:
-    if: >
-      github.event_name == 'pull_request' &&
-      github.event.pull_request.merged == true &&
-      github.event.pull_request.base.ref == 'master' &&
-      startsWith(github.event.pull_request.head.ref, 'release/')
+  # The push may be any master commit. Only a version that is newer than the
+  # latest release tag (or a release that still needs to be completed) reaches
+  # verify and publish.
+  gate:
+    name: Check for a pending release
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    concurrency:
-      group: release-publish-${{ github.ref }}
-      cancel-in-progress: false
+    timeout-minutes: 5
+    outputs:
+      release: ${{ steps.check.outputs.release }}
+      commit: ${{ steps.check.outputs.commit }}
 
     steps:
-      # Pin to the reviewed merge commit instead of whatever master points to
-      # when this job starts.
-      - name: Checkout merged pull request
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
           fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Check for a pending release
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          tag="v$version"
+          latest=$(git describe --tags --abbrev=0 --match 'v[0-9]*' 2>/dev/null || true)
+
+          if [ -n "$latest" ] && [ "v$version" != "$latest" ]; then
+            newest=$(printf '%s\n%s\n' "${latest#v}" "$version" | sort -V | tail -n 1)
+            if [ "$newest" != "$version" ]; then
+              echo "package.json version $version is not greater than the latest release tag $latest."
+              exit 1
+            fi
+          fi
+
+          if git rev-parse --verify --quiet "refs/tags/$tag" >/dev/null; then
+            commit=$(git rev-parse "refs/tags/$tag^{commit}")
+            if ! git merge-base --is-ancestor "$commit" "$GITHUB_SHA"; then
+              echo "Tag $tag points at $commit, which is not an ancestor of $GITHUB_SHA."
+              exit 1
+            fi
+          else
+            commit="$GITHUB_SHA"
+          fi
+
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists at $commit; nothing to do."
+            release=false
+          else
+            echo "Release $tag is pending for $commit."
+            release=true
+          fi
+
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+
+  # Build, test, and pack once. This job has no write token, no OIDC token, and
+  # no dependency cache, so a compromised dependency cannot publish.
+  verify:
+    name: Verify release artifact
+    needs: gate
+    if: github.event_name == 'push' && needs.gate.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.gate.outputs.commit }}
+          persist-credentials: false
 
       - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
         with:
-          node-version: "lts"
-          cache: true
+          node-version-file: .node-version
 
-      - name: Install dependencies
-        run: vp install
+      - name: Verify lockfile is unchanged
+        run: git diff --exit-code -- pnpm-lock.yaml package.json
 
       - name: Run checks
-        run: vp check
+        run: vp check --deny-warnings
 
       - name: Run tests
         run: vp test
 
-      - name: Read version
-        id: version
-        shell: bash
-        run: |
-          version=$(node -e "console.log(JSON.parse(require('node:fs').readFileSync('package.json', 'utf8')).version)")
-          echo "tag=v$version" >> "$GITHUB_OUTPUT"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-
-      - name: Validate version matches release branch
-        shell: bash
-        run: |
-          expected_branch="release/v${{ steps.version.outputs.version }}"
-          actual_branch="${{ github.event.pull_request.head.ref }}"
-          if [[ "$expected_branch" != "$actual_branch" ]]; then
-            echo "Version mismatch: package.json has v${{ steps.version.outputs.version }}, but PR branch is $actual_branch"
-            exit 1
-          fi
-
-      - name: Configure Git user
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-      # Build before tagging: publishing also builds, and a stale package.json
-      # must fail here rather than be rewritten after the tag exists.
       - name: Build package
         run: vp run build
 
       - name: Verify generated exports are committed
         run: git diff --exit-code -- package.json
 
-      - name: Create and push tag
-        id: create_tag
+      - name: Smoke test package output
+        run: vp run smoke
+
+      - name: Pack package
+        id: pack
         shell: bash
         run: |
-          if git rev-parse "${{ steps.version.outputs.tag }}" >/dev/null 2>&1; then
-            echo "Tag already exists: ${{ steps.version.outputs.tag }}, skipping publish and release."
-            echo "created=false" >> "$GITHUB_OUTPUT"
+          mkdir -p "$RUNNER_TEMP/package"
+          vp pm pack --pack-destination "$RUNNER_TEMP/package"
+          tarball=$(find "$RUNNER_TEMP/package" -maxdepth 1 -type f -name '*.tgz' -print -quit)
+          test -n "$tarball"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test packed package in a clean consumer
+        run: node scripts/runPackageSmoke.mjs "${{ steps.pack.outputs.tarball }}"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cryptovalid-package
+          path: ${{ runner.temp }}/package/*.tgz
+          if-no-files-found: error
+          # Keep the artifact available for a retry after a failed release step.
+          retention-days: 3
+
+  # Publish the exact tarball built and tested by `verify`. Every mutation is
+  # idempotent so a failed publish can be retried safely.
+  publish:
+    name: Publish release
+    needs:
+      - gate
+      - verify
+    if: github.event_name == 'push' && needs.gate.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout release commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.gate.outputs.commit }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          node-version-file: .node-version
+          run-install: false
+
+      - name: Download package artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: cryptovalid-package
+          path: ${{ runner.temp }}/package
+
+      - name: Locate package tarball
+        id: package
+        shell: bash
+        run: |
+          tarball=$(find "$RUNNER_TEMP/package" -type f -name '*.tgz' -print -quit)
+          test -n "$tarball"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Read version
+        id: version
+        shell: bash
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid package version: $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=v$version" >> "$GITHUB_OUTPUT"
+
+      - name: Configure Git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      # The tag is a release marker, not the publish switch. A failed publish
+      # can be retried on the same tag as long as it points at the release
+      # commit selected by the gate.
+      - name: Ensure release tag
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if git rev-parse --verify --quiet "refs/tags/$TAG" >/dev/null; then
+            tag_commit=$(git rev-parse "refs/tags/$TAG^{commit}")
+            head_commit=$(git rev-parse HEAD)
+            if [ "$tag_commit" != "$head_commit" ]; then
+              echo "Tag $TAG points at $tag_commit, not the release commit $head_commit."
+              exit 1
+            fi
+            echo "Tag $TAG already exists at the release commit."
           else
-            git tag "${{ steps.version.outputs.tag }}"
-            git push origin "${{ steps.version.outputs.tag }}"
-            echo "created=true" >> "$GITHUB_OUTPUT"
+            git tag -a "$TAG" -m "Release $TAG"
+            git push origin "$TAG"
+            echo "Created and pushed tag $TAG."
+          fi
+
+      - name: Check npm for an already published version
+        id: npm
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set +e
+          output=$(vp pm view "cryptovalid@$VERSION" version 2>&1)
+          status=$?
+          set -e
+
+          if [ "$status" -eq 0 ]; then
+            echo "cryptovalid@$VERSION is already published."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          elif printf '%s\n' "$output" | grep -q 'ERR_PNPM_PACKAGE_NOT_FOUND'; then
+            echo "cryptovalid@$VERSION is not published yet."
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            printf '%s\n' "$output"
+            echo "Could not determine whether cryptovalid@$VERSION is published."
+            exit "$status"
           fi
 
       - name: Publish to npm
-        if: steps.create_tag.outputs.created == 'true'
-        run: vp pm publish --no-git-checks --access public -- --provenance
+        if: steps.npm.outputs.publish == 'true'
+        env:
+          TARBALL: ${{ steps.package.outputs.tarball }}
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set +e
+          output=$(vp pm publish "$TARBALL" \
+            --no-git-checks \
+            --access public \
+            --provenance \
+            -- --publish-wait-timeout 900000 2>&1)
+          status=$?
+          set -e
+          printf '%s\n' "$output"
+
+          if [ "$status" -eq 0 ]; then
+            exit 0
+          fi
+
+          # npm scans new versions before they become available. A retry can
+          # therefore race the scan: this run's upload may already be accepted
+          # while the registry still reports the version as missing.
+          case "$output" in
+            *already*|*"cannot publish over"*|*EPUBLISHCONFLICT*|*ERR_PNPM_PUBLISH_ALREADY_EXISTS*|*AVAILABILITY_TIMEOUT*|*409*)
+              ;;
+            *)
+              exit "$status"
+              ;;
+          esac
+
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if vp pm view "cryptovalid@$VERSION" version >/dev/null 2>&1; then
+              echo "cryptovalid@$VERSION is published; treating the duplicate publish as success."
+              exit 0
+            fi
+            sleep 60
+          done
+
+          echo "cryptovalid@$VERSION is still not published after the duplicate-publish wait."
+          exit "$status"
+
+      - name: Check GitHub release
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        shell: bash
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "GitHub release $TAG already exists."
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Generate release notes with git-cliff
-        if: steps.create_tag.outputs.created == 'true'
+        if: steps.release.outputs.exists == 'false'
         uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4.8.0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
         with:
           config: cliff.toml
           args: --latest --strip all --output RELEASE_NOTES.md
 
       - name: Create GitHub release
-        if: steps.create_tag.outputs.created == 'true'
+        if: steps.release.outputs.exists == 'false'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh release create "${{ steps.version.outputs.tag }}" --title "Release ${{ steps.version.outputs.tag }}" --notes-file RELEASE_NOTES.md
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: gh release create "$TAG" --title "Release $TAG" --notes-file RELEASE_NOTES.md

@@ -4,6 +4,8 @@ dist
 .DS_Store
 # Temporary directory used by scripts/checkDistTypes.mjs
 .tmp-dist-types-*
+# Temporary file used by scripts/generateExports.ts
+.package.json.*.tmp
 !.vscode/
 !.vscode/settings.json
 !.vscode/extensions.json

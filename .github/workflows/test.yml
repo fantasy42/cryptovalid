@@ -16,22 +16,27 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
         with:
-          node-version: "lts"
+          node-version-file: .node-version
           cache: true
 
-      - name: Install dependencies
-        run: vp install
+      # setup-vp runs `vp install`. If the lockfile changed, the install was
+      # not frozen and CI must fail instead of silently resolving new versions.
+      - name: Verify lockfile is unchanged
+        run: git diff --exit-code -- pnpm-lock.yaml package.json
 
       - name: Run checks
-        run: vp check
+        run: vp check --deny-warnings
 
       - name: Run tests
         run: vp test
@@ -39,46 +44,78 @@ jobs:
       - name: Build package
         run: vp run build
 
-      - name: Smoke test package output
-        run: vp run smoke
-
       - name: Verify generated exports are committed
         run: git diff --exit-code -- package.json
 
-  compat:
+      - name: Smoke test package output
+        run: vp run smoke
+
+      - name: Pack package
+        id: pack
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/package"
+          vp pm pack --pack-destination "$RUNNER_TEMP/package"
+          tarball=$(find "$RUNNER_TEMP/package" -maxdepth 1 -type f -name '*.tgz' -print -quit)
+          test -n "$tarball"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test packed package in a clean consumer
+        run: node scripts/runPackageSmoke.mjs "${{ steps.pack.outputs.tarball }}"
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: cryptovalid-package
+          path: ${{ runner.temp }}/package/*.tgz
+          if-no-files-found: error
+          retention-days: 1
+
+  # Runtime compatibility is about the published artifact, not the Vite+
+  # toolchain. The toolchain requires Node ^22.18 || ^24.11 || >=26, so the
+  # minimum supported runtime is tested with the packed tarball instead.
+  compatibility:
     name: Compatibility (Node ${{ matrix.node }})
+    needs: test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        node: ["22.12.0", "24"]
+        node: ["22.12.0", "24", "26"]
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node }}
-          cache: true
 
-      - name: Install dependencies
-        run: vp install
+      - name: Download package artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: cryptovalid-package
+          path: ${{ runner.temp }}/package
 
-      - name: Run checks
-        run: vp check
+      - name: Verify Node.js version
+        env:
+          EXPECTED_NODE: ${{ matrix.node }}
+        shell: bash
+        run: |
+          actual=$(node --version)
+          echo "Node.js: $actual (expected v$EXPECTED_NODE…)"
+          if [[ "$actual" != "v$EXPECTED_NODE"* ]]; then
+            echo "The compatibility matrix did not install the expected Node.js version."
+            exit 1
+          fi
 
-      - name: Run tests
-        run: vp test
-
-      # `vp run` requires a Vite+-supported Node (22.18+), so the minimum
-      # supported Node builds with `vp pack` directly.
-      - name: Build package
-        run: vp pack
-
-      - name: Check built type exports
-        run: node scripts/checkDistTypes.mjs
-
-      - name: Smoke test package output
-        run: node scripts/smokeDist.mjs
+      - name: Smoke test packed package
+        shell: bash
+        run: |
+          tarball=$(find "$RUNNER_TEMP/package" -type f -name '*.tgz' -print -quit)
+          test -n "$tarball"
+          node scripts/runPackageSmoke.mjs "$tarball"

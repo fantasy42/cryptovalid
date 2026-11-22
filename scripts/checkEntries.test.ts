@@ -1,8 +1,9 @@
+import {spawnSync} from 'node:child_process';
 import {mkdir, mkdtemp, rm, writeFile} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {afterEach, describe, expect, it} from 'vite-plus/test';
+import {afterEach, describe, expect, it, vi} from 'vite-plus/test';
 
 import {auditEntries} from './checkEntries.ts';
 import {defineEntries} from './entries.ts';
@@ -18,6 +19,9 @@ const fixtureEntries = defineEntries({
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..'
+);
+const checkEntriesPath = fileURLToPath(
+  new URL('./checkEntries.ts', import.meta.url)
 );
 
 const createdRoots: string[] = [];
@@ -179,5 +183,45 @@ describe('auditEntries', () => {
 
   it('has no unlisted entry files in this repository', async () => {
     await expect(auditEntries({rootDir: repoRoot})).resolves.toEqual([]);
+  });
+
+  it('runs the audit when the module is the process entry point', async () => {
+    const originalEntry = process.argv.at(1);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+
+    process.argv[1] = checkEntriesPath;
+
+    try {
+      // Re-evaluate the module with the script's own path as argv[1]. A
+      // regression back to `import.meta.main` would not run the audit here.
+      vi.resetModules();
+      await import('./checkEntries.ts');
+
+      expect(log).toHaveBeenCalledWith(
+        '✅ Entry manifest matches the chain and alias sources.'
+      );
+    } finally {
+      if (originalEntry === undefined) {
+        process.argv.splice(1, 1);
+      } else {
+        process.argv[1] = originalEntry;
+      }
+
+      log.mockRestore();
+    }
+  });
+
+  it('runs the audit when executed directly', () => {
+    const result = spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', checkEntriesPath],
+      {cwd: repoRoot, encoding: 'utf8', timeout: 30_000}
+    );
+
+    expect(result.error).toBeUndefined();
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain(
+      'Entry manifest matches the chain and alias sources.'
+    );
   });
 });

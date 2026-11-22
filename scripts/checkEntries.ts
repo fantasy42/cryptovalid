@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {glob} from 'tinyglobby';
 
 import {ENTRIES} from './entries.ts';
+import {isMainModule} from './isMain.ts';
 
 export interface EntryAuditIssue {
   kind: 'unlisted' | 'missing';
@@ -173,8 +174,7 @@ async function main(): Promise<void> {
   process.exitCode = 1;
 }
 
-// `import.meta.main` is available in every Node version supported by Vite+.
-if (import.meta.main) {
+if (isMainModule(import.meta.url, process.argv[1])) {
   try {
     await main();
   } catch (error) {

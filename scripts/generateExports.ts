@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url';
 
 import {buildExports} from './buildExports.ts';
 import {ENTRIES} from './entries.ts';
+import {isMainModule} from './isMain.ts';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const DEFAULT_ROOT_DIR = path.resolve(SCRIPT_DIR, '..');
@@ -88,7 +89,7 @@ async function main(): Promise<void> {
   );
 }
 
-if (import.meta.main) {
+if (isMainModule(import.meta.url, process.argv[1])) {
   try {
     await main();
   } catch (error) {

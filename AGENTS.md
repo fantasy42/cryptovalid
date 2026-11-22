@@ -158,6 +158,8 @@ This project uses **Vite+**, a unified toolchain built on top of Vite, Rolldown,
 
 Vite+ is distinct from Vite itself; it invokes Vite internally for commands like `vp dev` and `vp build`.
 
+The development and CI Node.js version is pinned in `.node-version` (24 LTS). The published library keeps a wider runtime contract (`engines.node >=22.12.0`); runtime compatibility is tested against the packed tarball on Node 22.12, 24, and 26. Do not raise the runtime floor to the development floor without a major-version review.
+
 | npm command               | Vite+ command            | Description                          |
 |---------------------------|--------------------------|--------------------------------------|
 | `npm install`             | `vp install`             | Install dependencies                 |
@@ -176,6 +178,7 @@ Vite+ is distinct from Vite itself; it invokes Vite internally for commands like
 2. Build the library: `vp run build` (or `vp pack`)
 3. Run format, lint, and type checks: `vp check`
 4. Run tests: `vp test`. To run only a specific test file: `vp test tests/btc.test.ts`
+5. Test the packed package in a clean consumer: `vp pm pack`, then `vp run smoke:package <tarball>`
 
 ### TypeScript projects
 
@@ -280,7 +283,14 @@ For a whole-program check, run `tsc -p tsconfig.lib.json --noEmit` and `tsc -p t
    - Negative cases (invalid length, wrong charset, checksum mismatch, wrong network)
    - Edge cases (empty string, whitespace‑only, maximum length, leading zero bytes, etc.)
    - Tests must assert `result.code` and `result.message` on failure, not a plain `error` string. The `original` field should be asserted only where it documents a specific behavior (e.g., trimming, null input).
-3. **CI Requirements**: The GitHub Actions CI pipeline runs `vp install`, `vp check`, and `vp test`. All PRs must pass these checks without errors.
+3. **CI Requirements**: The GitHub Actions pipeline runs `vp check --deny-warnings`, `vp test`, `vp run build`, `vp run smoke`, and a packed-package consumer smoke. All PRs must pass these checks without errors. Runtime compatibility runs against the packed tarball on Node 22.12, 24, and 26; the Vite+ toolchain itself runs on the Node version in `.node-version`. `setup-vp` already runs `vp install`; do not add a second install step.
+
+## Releasing
+
+1. Run the `Release` workflow manually on `master` and choose `patch`, `minor`, or `major`. It opens a `release/vX.Y.Z` pull request.
+2. Merge that pull request. The merge is a push to `master`; the `Release` workflow then verifies the release commit, packs the tarball, publishes it with npm trusted publishing (OIDC), creates the `vX.Y.Z` tag, and creates the GitHub release.
+3. The gate only runs `verify`/`publish` when `package.json` names a version newer than the latest `v*` tag, or when a release still needs to be completed. Re-running the push run for the same commit is safe: the npm version, tag, and GitHub release are each checked before they are mutated.
+4. If a publish fails, re-run the failed `Release` run. npm scans new versions before they become available, so the publish step waits for the registry and treats a duplicate publish as success.
 
 ## Security and reliability
 

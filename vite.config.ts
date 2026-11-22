@@ -21,16 +21,13 @@ export default defineConfig({
     format: ['esm', 'cjs'],
     dts: {
       generator: 'tsgo',
-      // tsdown 0.23.4 appends a sourceMappingURL to declaration files when
-      // `sourcemap` is enabled but only emits the matching .map files when
-      // this option is set. Remove once Vite+ bundles tsdown >= 0.23.7.
-      sourcemap: true,
     },
     unbundle: true,
     clean: true,
     minify: true,
-    // Publish JavaScript source maps for both ESM and CJS outputs.
-    sourcemap: true,
+    // Keep the published package lean. Declaration maps would also point at
+    // source files that are not part of the published tarball.
+    sourcemap: false,
     publint: true,
     attw: {
       profile: 'node16',

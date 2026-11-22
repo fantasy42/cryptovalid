@@ -2,7 +2,7 @@
 
 First off, thank you for considering contributing to `cryptovalid`! It's people like you that make this tool better for everyone.
 
-For detailed coding standards, validator templates, test coverage expectations, and security guidelines, please read the **[AGENTS.md](./AGENTS.md)** file – it’s the single source of truth for development conventions.
+For detailed coding standards, validator templates, test coverage expectations, and security guidelines, please read the **[AGENTS.md](../AGENTS.md)** file – it’s the single source of truth for development conventions.
 
 ## Getting Started
 
@@ -22,6 +22,8 @@ Vite+ is distinct from Vite itself, and invokes Vite underneath when running com
 Always use `vp` commands for all development, linting, and testing tasks. Do not use `npm`, `pnpm`, `yarn` or `bun` directly.
 
 ### 1. Install Dependencies
+
+The development Node.js version is pinned in `.node-version` (24 LTS); the published library itself supports Node.js 22.12+.
 
 Run this after pulling remote changes and before getting started:
 
