@@ -14,6 +14,9 @@ export default defineConfig({
     '*': 'vp check --fix',
   },
   pack: {
+    // The root tsconfig is a solution; the build must read the library project
+    // so declaration emit sees the source files.
+    tsconfig: './tsconfig.lib.json',
     // Runtime-neutral library: no Node-only resolution assumptions.
     platform: 'neutral',
     // Keep a browser-safe syntax floor, independent of engines.node.

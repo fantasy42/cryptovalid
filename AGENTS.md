@@ -140,6 +140,7 @@ See the project README for a usage example with `switch` statements.
 │   │   └── [other_utils].ts
 │   │
 │   ├── constants.ts      # Public error codes and shared constants
+│   ├── globals.d.ts      # Web-standard globals declared for the library project
 │   ├── index.ts          # Main entry point of the application/library
 │   └── types.ts          # Global TypeScript type definitions and interfaces
 │
@@ -175,6 +176,17 @@ Vite+ is distinct from Vite itself; it invokes Vite internally for commands like
 2. Build the library: `vp run build` (or `vp pack`)
 3. Run format, lint, and type checks: `vp check`
 4. Run tests: `vp test`. To run only a specific test file: `vp test tests/btc.test.ts`
+
+### TypeScript projects
+
+The root `tsconfig.json` is a solution: it has `"files": []` and only `references` the two real projects.
+
+- `tsconfig.lib.json` — shipped source (`src`), `types: []`, and an ES2022 lib with no DOM. Keep it free of Node and DOM globals; `src/globals.d.ts` declares only the web-standard globals the library uses.
+- `tsconfig.node.json` — `tests`, `scripts`, `vite.config.ts`, and `src/**/*.test.ts`, with Node types.
+
+Do not add `include`, `types`, or `lib` to the root `tsconfig.json`. A root that includes files would take over every file during Oxlint's per-file project discovery, and the two projects would silently stop being type-checked. `vite.config.ts` points `pack.tsconfig` at `tsconfig.lib.json` because declaration emit cannot use a file-less solution.
+
+For a whole-program check, run `tsc -p tsconfig.lib.json --noEmit` and `tsc -p tsconfig.node.json --noEmit`; the solution root itself contains no files, so `tsc --noEmit` checks nothing.
 
 ## Code style and conventions
 

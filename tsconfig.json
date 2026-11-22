@@ -1,12 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2023"],
+    "lib": ["ES2022"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "moduleDetection": "force",
     "resolveJsonModule": true,
-    "types": ["node"],
     "strict": true,
     "noUnusedLocals": true,
     "noEmit": true,
@@ -16,5 +15,9 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true
   },
-  "include": ["src", "tests", "scripts", "vite.config.ts"]
+  "files": [],
+  "references": [
+    {"path": "./tsconfig.lib.json"},
+    {"path": "./tsconfig.node.json"}
+  ]
 }
