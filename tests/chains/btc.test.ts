@@ -1,8 +1,8 @@
 import {describe, it, expect} from 'vite-plus/test';
 
-import {validateBTC, validateBTCBatch} from '../src/chains/btc';
-import {bech32, bech32m} from '../src/utils/bech32';
-import {ValidationErrorCodes} from '../src/constants';
+import {validateBTC, validateBTCBatch} from '../../src/chains/btc';
+import {bech32, bech32m} from '../../src/utils/bech32';
+import {ValidationErrorCodes} from '../../src/constants';
 
 describe('validateBTC', () => {
   describe('positive cases (valid mainnet)', () => {

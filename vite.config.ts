@@ -48,4 +48,9 @@ export default defineConfig({
     bracketSpacing: false,
     ignorePatterns: ['*.yml', '*.md'],
   },
+  test: {
+    // Keep discovery explicit: shipped-code tests live under tests/ and repo
+    // tooling tests stay beside their scripts.
+    include: ['tests/**/*.{test,spec}.ts', 'scripts/**/*.{test,spec}.ts'],
+  },
 });

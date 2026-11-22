@@ -1,8 +1,8 @@
 import {describe, it, expect} from 'vite-plus/test';
 
-import {createValidator} from '../src/utils/createValidator';
-import {getEVMLogic} from '../src/utils/evm';
-import {ValidationErrorCodes} from '../src/constants';
+import {createValidator} from '../../src/utils/createValidator';
+import {getEVMLogic} from '../../src/utils/evm';
+import {ValidationErrorCodes} from '../../src/constants';
 
 const validateGenericEVM = createValidator(getEVMLogic('GenericEVM'));
 

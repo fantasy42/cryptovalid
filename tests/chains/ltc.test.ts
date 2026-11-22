@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vite-plus/test';
 
-import {validateLTC} from '../src/chains/ltc';
-import {ValidationErrorCodes} from '../src/constants';
+import {validateLTC} from '../../src/chains/ltc';
+import {ValidationErrorCodes} from '../../src/constants';
 
 describe('validateLTC', () => {
   describe('positive cases (valid mainnet)', () => {

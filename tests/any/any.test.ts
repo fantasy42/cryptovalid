@@ -1,10 +1,11 @@
+import type {Route} from '../../src/any/routes';
+import type {SupportedChain} from '../../src/any/types';
+
 import {describe, it, expect} from 'vite-plus/test';
 
-import {validateAny, validateAnyBatch} from '../src/any';
-import {ROUTES, evaluateRoutes} from '../src/any/routes';
-import type {Route} from '../src/any/routes';
-import type {SupportedChain} from '../src/any/types';
-import {ValidationErrorCodes} from '../src/constants';
+import {validateAny, validateAnyBatch} from '../../src/any';
+import {ROUTES, evaluateRoutes} from '../../src/any/routes';
+import {ValidationErrorCodes} from '../../src/constants';
 
 const VALID_ETH = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 const INVALID_EVM_CHECKSUM = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96046';

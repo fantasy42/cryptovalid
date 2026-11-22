@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vite-plus/test';
 
-import {validateSOL} from '../src/chains/sol';
-import {ValidationErrorCodes} from '../src/constants';
+import {validateSOL} from '../../src/chains/sol';
+import {ValidationErrorCodes} from '../../src/constants';
 
 describe('validateSOL', () => {
   describe('positive cases (valid mainnet)', () => {

@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vite-plus/test';
 
-import {validateXLM} from '../src/chains/xlm';
-import {ValidationErrorCodes} from '../src/constants';
+import {validateXLM} from '../../src/chains/xlm';
+import {ValidationErrorCodes} from '../../src/constants';
 
 describe('validateXLM', () => {
   describe('positive cases (valid mainnet)', () => {

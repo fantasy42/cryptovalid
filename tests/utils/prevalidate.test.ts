@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vite-plus/test';
 
-import {prevalidate, toValidationFailure} from '../prevalidate';
-import {ValidationErrorCodes} from '../../constants';
+import {prevalidate, toValidationFailure} from '../../src/utils/prevalidate';
+import {ValidationErrorCodes} from '../../src/constants';
 
 describe('prevalidate', () => {
   it('accepts a valid printable ASCII string', () => {

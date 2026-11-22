@@ -1,84 +1,99 @@
 import type {
   AnyBatchValidationResult,
   AnyValidationResult,
-} from '../src/any/types';
+} from '../../src/any/types';
 import type {
   BatchItem,
   BatchValidationResult,
   ValidationResult,
-} from '../src/types';
-import type {ValidationOutcome} from '../src/utils/createValidator';
-import type {BNBAddressType, BNBValidationResult} from '../src/chains/bnb';
-import type {BTCValidationResult, BitcoinAddressType} from '../src/chains/btc';
-import type {ETHValidationResult, EthereumAddressType} from '../src/chains/eth';
-import type {LTCValidationResult, LitecoinAddressType} from '../src/chains/ltc';
+} from '../../src/types';
+import type {ValidationOutcome} from '../../src/utils/createValidator';
+import type {BNBAddressType, BNBValidationResult} from '../../src/chains/bnb';
+import type {
+  BTCValidationResult,
+  BitcoinAddressType,
+} from '../../src/chains/btc';
+import type {
+  ETHValidationResult,
+  EthereumAddressType,
+} from '../../src/chains/eth';
+import type {
+  LTCValidationResult,
+  LitecoinAddressType,
+} from '../../src/chains/ltc';
 import type {
   PolygonAddressType,
   PolygonValidationResult,
-} from '../src/chains/polygon';
-import type {SOLValidationResult, SolanaAddressType} from '../src/chains/sol';
-import type {TONAddressType, TONValidationResult} from '../src/chains/ton';
-import type {TronAddressType, TronValidationResult} from '../src/chains/trx';
-import type {StellarAddressType, XLMValidationResult} from '../src/chains/xlm';
-import type {XRPAddressType, XRPValidationResult} from '../src/chains/xrp';
+} from '../../src/chains/polygon';
+import type {
+  SOLValidationResult,
+  SolanaAddressType,
+} from '../../src/chains/sol';
+import type {TONAddressType, TONValidationResult} from '../../src/chains/ton';
+import type {TronAddressType, TronValidationResult} from '../../src/chains/trx';
+import type {
+  StellarAddressType,
+  XLMValidationResult,
+} from '../../src/chains/xlm';
+import type {XRPAddressType, XRPValidationResult} from '../../src/chains/xrp';
 import type {
   USDTBEP20AddressType,
   USDTBEP20ValidationResult,
-} from '../src/aliases/usdt-bep20';
+} from '../../src/aliases/usdt-bep20';
 import type {
   USDTERC20AddressType,
   USDTERC20ValidationResult,
-} from '../src/aliases/usdt-erc20';
+} from '../../src/aliases/usdt-erc20';
 import type {
   USDTTRC20AddressType,
   USDTTRC20ValidationResult,
-} from '../src/aliases/usdt-trc20';
+} from '../../src/aliases/usdt-trc20';
 
 import {describe, it, expect, expectTypeOf} from 'vite-plus/test';
 
-import {validateAny, validateAnyBatch} from '../src/any';
+import {validateAny, validateAnyBatch} from '../../src/any';
 import {
   validateBNB,
   validateBNBBatch,
   validateBEP20,
   validateBEP20Batch,
-} from '../src/chains/bnb';
-import {validateBTC, validateBTCBatch} from '../src/chains/btc';
+} from '../../src/chains/bnb';
+import {validateBTC, validateBTCBatch} from '../../src/chains/btc';
 import {
   validateERC20,
   validateERC20Batch,
   validateETH,
   validateETHBatch,
-} from '../src/chains/eth';
-import {validateLTC, validateLTCBatch} from '../src/chains/ltc';
+} from '../../src/chains/eth';
+import {validateLTC, validateLTCBatch} from '../../src/chains/ltc';
 import {
   validateMatic,
   validateMaticBatch,
   validatePolygon,
   validatePolygonBatch,
-} from '../src/chains/polygon';
-import {validateSOL, validateSOLBatch} from '../src/chains/sol';
-import {validateTON, validateTONBatch} from '../src/chains/ton';
+} from '../../src/chains/polygon';
+import {validateSOL, validateSOLBatch} from '../../src/chains/sol';
+import {validateTON, validateTONBatch} from '../../src/chains/ton';
 import {
   validateTRC20,
   validateTRC20Batch,
   validateTRX,
   validateTRXBatch,
-} from '../src/chains/trx';
-import {validateXLM, validateXLMBatch} from '../src/chains/xlm';
-import {validateXRP, validateXRPBatch} from '../src/chains/xrp';
+} from '../../src/chains/trx';
+import {validateXLM, validateXLMBatch} from '../../src/chains/xlm';
+import {validateXRP, validateXRPBatch} from '../../src/chains/xrp';
 import {
   validateUSDTBEP20,
   validateUSDTBEP20Batch,
-} from '../src/aliases/usdt-bep20';
+} from '../../src/aliases/usdt-bep20';
 import {
   validateUSDTERC20,
   validateUSDTERC20Batch,
-} from '../src/aliases/usdt-erc20';
+} from '../../src/aliases/usdt-erc20';
 import {
   validateUSDTTRC20,
   validateUSDTTRC20Batch,
-} from '../src/aliases/usdt-trc20';
+} from '../../src/aliases/usdt-trc20';
 
 describe('result type contracts', () => {
   it('keeps every exported result alias equal to its validator return type', () => {

@@ -1,8 +1,8 @@
 import {describe, it, expect} from 'vite-plus/test';
 
-import {crc16Ton} from '../src/utils/crc16';
-import {validateTON} from '../src/chains/ton';
-import {ValidationErrorCodes} from '../src/constants';
+import {crc16Ton} from '../../src/utils/crc16';
+import {validateTON} from '../../src/chains/ton';
+import {ValidationErrorCodes} from '../../src/constants';
 
 describe('validateton', () => {
   describe('positive cases (valid mainnet & testnet)', () => {

@@ -1,10 +1,10 @@
-import type {BatchItem} from '../../types';
+import type {BatchItem} from '../../src/types';
 
 import {describe, it, expect} from 'vite-plus/test';
 
-import {batch} from '../batch';
-import {createValidator} from '../createValidator';
-import {ValidationErrorCodes} from '../../constants';
+import {batch} from '../../src/utils/batch';
+import {createValidator} from '../../src/utils/createValidator';
+import {ValidationErrorCodes} from '../../src/constants';
 
 const okValidator = createValidator<'Ok'>((address) => ({
   isValid: true,

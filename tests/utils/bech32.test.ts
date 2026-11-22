@@ -1,6 +1,12 @@
 import {describe, it, expect} from 'vite-plus/test';
 
-import {bech32, bech32m, toWords, fromWordsUnsafe, fromWords} from '../bech32';
+import {
+  bech32,
+  bech32m,
+  toWords,
+  fromWordsUnsafe,
+  fromWords,
+} from '../../src/utils/bech32';
 
 function testValid(codec: typeof bech32, fixture: (typeof bech32Valid)[0]) {
   it(`encode & decode "${fixture.string}"`, () => {

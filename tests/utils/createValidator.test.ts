@@ -1,9 +1,9 @@
-import type {ValidationContext} from '../createValidator';
+import type {ValidationContext} from '../../src/utils/createValidator';
 
 import {describe, it, expect, vi} from 'vite-plus/test';
 
-import {createValidator} from '../createValidator';
-import {ValidationErrorCodes} from '../../constants';
+import {createValidator} from '../../src/utils/createValidator';
+import {ValidationErrorCodes} from '../../src/constants';
 
 describe('createValidator factory', () => {
   const validAddress = '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa';

@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vite-plus/test';
 
-import {validateXRP} from '../src/chains/xrp';
-import {ValidationErrorCodes} from '../src/constants';
+import {validateXRP} from '../../src/chains/xrp';
+import {ValidationErrorCodes} from '../../src/constants';
 
 describe('validateXRP', () => {
   describe('positive cases (valid addresses)', () => {

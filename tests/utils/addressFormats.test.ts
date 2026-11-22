@@ -9,7 +9,7 @@ import {
   isTONAddress,
   isTronAddress,
   isXRPAddress,
-} from '../addressFormats';
+} from '../../src/utils/addressFormats';
 
 const VALID_ETH = '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045';
 const VALID_BTC_BECH32M =

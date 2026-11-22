@@ -1,7 +1,7 @@
 import {describe, it, expect} from 'vite-plus/test';
 
-import {validateTRX} from '../src/chains/trx';
-import {ValidationErrorCodes} from '../src/constants';
+import {validateTRX} from '../../src/chains/trx';
+import {ValidationErrorCodes} from '../../src/constants';
 
 describe('validatetrx', () => {
   describe('positive cases (valid mainnet)', () => {

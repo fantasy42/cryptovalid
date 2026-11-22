@@ -50,7 +50,9 @@ Ensure existing tests pass, and add tests for new behavior:
 vp test
 ```
 
-Run one file with `vp test tests/btc.test.ts`.
+Tests for shipped code live under `tests/`, grouped by source domain: `tests/chains/`, `tests/any/`, `tests/utils/`, and `tests/contract/`. Add new tests to the matching folder; repo-tooling tests stay in `scripts/`.
+
+Run one file with `vp test tests/chains/btc.test.ts`.
 
 ### Build and Package Checks
 
@@ -82,7 +84,7 @@ Before opening a PR:
 - Run `vp check` and `vp test`.
 - Run `vp run build` if you changed source, the entry manifest, or generated exports.
 - Add or update tests for every new or changed validator.
-- If you added a chain, update `src/any/routes.ts`, `tests/any.test.ts`, the entry manifest, and the supported-chains table in `README.md`. The full checklist is in [AGENTS.md](../AGENTS.md).
+- If you added a chain, update `src/any/routes.ts`, `tests/any/any.test.ts`, the entry manifest, and the supported-chains table in `README.md`. The full checklist is in [AGENTS.md](../AGENTS.md).
 - Update `README.md` if the public API changed.
 - Do not hand-edit `package.json` exports; they are generated from `scripts/entries.ts`.
 

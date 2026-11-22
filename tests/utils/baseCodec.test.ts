@@ -1,6 +1,6 @@
 import {describe, it, expect} from 'vite-plus/test';
 
-import {createBaseCodec} from '../baseCodec';
+import {createBaseCodec} from '../../src/utils/baseCodec';
 
 const BTC_ALPHABET =
   '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';

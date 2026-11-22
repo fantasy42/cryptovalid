@@ -14,7 +14,7 @@ Use `vp` for everything. Do not use `npm`, `pnpm`, `yarn`, or `bun` directly.
 
 - `vp install` - install dependencies after pulling changes.
 - `vp check` - Oxlint, Oxfmt, and type checks. Add `--fix` to autofix.
-- `vp test` - run the full suite. `vp test tests/btc.test.ts` runs one file.
+- `vp test` - run the full suite. `vp test tests/chains/btc.test.ts` runs one file; `vp test tests/chains` runs one domain.
 - `vp run build` - regenerate exports, pack `dist`, and verify built declarations.
 - `vp run check:entries` - audit `src/chains` and `src/aliases` against the entry manifest.
 - `vp run smoke` - smoke-test the built `dist` in ESM and CJS.
@@ -34,19 +34,24 @@ src/any/              validateAny router; subpath-only
 src/utils/            codecs, validator factories, prevalidation, address format predicates
 src/constants.ts      stable error codes
 scripts/entries.ts    entry manifest -> generated package.json exports
-tests/                per-chain, router, and type-contract tests
+tests/                shipped-code tests, grouped by source domain
+  any/                validateAny router behavior and route configuration
+  chains/             one test file per chain
+  contract/           public result types, error codes, export contracts
+  utils/              codecs, validator factories, prevalidation, predicates
+scripts/*.test.ts     repo-tooling tests, kept beside their source
 ```
 
 ## Invariants
 
 1. `scripts/entries.ts` is the source of truth for build entries and generated `exports`. Never hand-edit `package.json` exports; edit the manifest and run `vp run build`. CI checks the generated diff.
-2. `src/chains` and `src/aliases` are entry-only. Every public top-level `.ts` file there must be registered in the manifest. Co-located `*.test.ts` and `*.spec.ts` files are ignored; `index.ts` and `.d.ts` files are rejected. Put helpers in `src/utils` or a subdirectory.
+2. `src/chains` and `src/aliases` are entry-only. Every public top-level `.ts` file there must be registered in the manifest. `index.ts` and `.d.ts` files are rejected. Keep tests and helper modules out of these directories; put shipped-code tests under `tests/` and chain helpers in `src/utils` or a subdirectory.
 3. `src/index.ts` must re-export every public entry except `any`, which is subpath-only. `scripts/entries.test.ts` enforces parity.
 4. Every chain validator uses `createValidator`; every chain batch validator uses `createBatchValidator`. The router batch delegates to the shared `batch` helper. Shared input checks live in `src/utils/prevalidate.ts`: string, trimmed, non-empty, at most 256 characters, ASCII 32-126. Do not duplicate them.
 5. `createValidator` owns `original`: it is the trimmed input when a string is supplied and `''` otherwise. The factory attaches and overrides it; the `ValidationOutcome` type disallows `original`, so validators cannot set it. Failure results use `ValidationErrorCodes` and a human-readable `message`. `code` is stable; `message` is not. Chain validators and their batch variants return the trimmed `original`; keep that behavior for new chain validators. On success, `address` is the validator's canonical form where one exists; otherwise it equals `original`.
 6. Chain validators must not throw on malformed address input. `createValidator` catches exceptions and maps them to `INTERNAL_ERROR`. Batch functions expect an array of `BatchItem` values and throw `TypeError` for non-arrays. Malformed batch items are treated as empty strings and fail with `EMPTY`.
 7. `validateAny` evaluates every route whose predicate matches; it does not short-circuit, so an address can be valid on multiple chains. Route predicates live in `src/utils/addressFormats.ts`; each predicate must accept every format the underlying validator accepts (a superset is fine). Routes are ordered specific-first: narrow prefix/length formats before broad shapes (notably Solana last) to keep a broad route's failure from masking a more specific one where formats are distinct. Prefix-only routes (notably Bitcoin and Litecoin Base58) can still overlap broad Base58 shapes; in that case `validateAny` reports the first matching route's failure. Overlapping predicates are expected; do not merge routes solely to avoid overlap. `evaluateRoutes` catches unexpected predicate/validator throws and returns `INTERNAL_ERROR`; `validateAny.address` is the first successful validator's address in route order. When adding or changing a format, update the predicate and add cross-chain tests.
-8. The root `tsconfig.json` is a file-less solution (`files: []`) with shared compiler options. Do not populate `files` or add `include`. `tsconfig.lib.json` covers shipped source with no Node or DOM globals; `tsconfig.node.json` adds Node types for tests, scripts, and `vite.config.ts`. The build uses `tsconfig.lib.json`.
+8. The root `tsconfig.json` is a file-less solution (`files: []`) with shared compiler options. Do not populate `files` or add `include`. `tsconfig.lib.json` covers shipped source with no Node or DOM globals and excludes tests as a guard; `tsconfig.node.json` adds Node types for `tests/`, `scripts/`, and `vite.config.ts`. Vitest discovery is scoped in `vite.config.ts` to `tests/**` and `scripts/**`. The build uses `tsconfig.lib.json`.
 9. Checksum code (Base58Check, Bech32, EIP-55, CRC16) is security-critical. Changes require expanded reference vectors, a clear explanation of why validation is not weakened, and maintainer review. Adding an address type is compatible; rejecting previously valid addresses requires a major version.
 10. Do not add runtime dependencies casually. The only current runtime dependency is `@noble/hashes`.
 
@@ -57,14 +62,17 @@ tests/                per-chain, router, and type-contract tests
 3. Re-export the values and types from `src/index.ts`.
 4. Update the expected entry list in `scripts/entries.test.ts`.
 5. Add a predicate to `src/utils/addressFormats.ts`, a route entry to `src/any/routes.ts`, and a chain name to `SupportedChain`. Order specific formats before broad ones; overlapping routes are fine because every matching route is evaluated.
-6. Add `tests/<name>.test.ts` and cases in `tests/any.test.ts` for valid addresses, invalid addresses, and cross-chain isolation.
+6. Add `tests/chains/<name>.test.ts` and cases in `tests/any/any.test.ts` for valid addresses, invalid addresses, and cross-chain isolation.
 7. Update the supported-chains table in `README.md`.
 8. Run `vp run check:entries`, `vp test`, and `vp run build`.
 
 ## Tests
 
-- Chain tests live in `tests/*.test.ts`. Internal utility tests live in `src/utils/__tests__/`.
-- Batch behavior is covered by the generic `src/utils/__tests__/batch.test.ts`. The router has `tests/any.test.ts`; all public result aliases (single-item and batch) and both no-`original` outcome branches are pinned in `tests/types.test.ts`.
+- Shipped-code tests live under `tests/`, grouped by source domain: `tests/chains/`, `tests/any/`, `tests/utils/`, and `tests/contract/`. Token alias tests go in `tests/aliases/` when needed. Repo-tooling tests stay in `scripts/`.
+- Do not put tests under `src/`; Vitest only discovers `tests/**` and `scripts/**`.
+- Group by source domain; do not split unit from integration. Add an environment folder only when a real second runtime requires it. Mirror source filenames: `src/utils/base32.ts` -> `tests/utils/base32.test.ts`, `src/chains/btc.ts` -> `tests/chains/btc.test.ts`.
+- Batch behavior is covered by the generic `tests/utils/batch.test.ts`. The router has `tests/any/any.test.ts`; all public result aliases (single-item and batch) and both no-`original` outcome branches are pinned in `tests/contract/types.test.ts`.
+- Shared address vectors belong in `tests/fixtures/` when a vector is used by more than one suite. Keep checksum reference vectors local and explicit for auditability.
 - New validators need positive cases, negative cases (length, charset, checksum, wrong network), and edge cases (empty, whitespace, maximum length, leading zeros).
 - Assert `result.code` and `result.message` on failure, not an `error` string. Assert `original` only where it documents trimming, case preservation, the factory-owned contract, or null input.
 - Aim for 95% line coverage on validator and utility logic. Coverage is a target, not an enforced gate today.

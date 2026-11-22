@@ -1,9 +1,9 @@
 import {describe, it, expect} from 'vite-plus/test';
 
-import {validateBNB} from '../src/chains/bnb';
-import {validateETH} from '../src/chains/eth';
-import {validatePolygon} from '../src/chains/polygon';
-import {ValidationErrorCodes} from '../src/constants';
+import {validateBNB} from '../../src/chains/bnb';
+import {validateETH} from '../../src/chains/eth';
+import {validatePolygon} from '../../src/chains/polygon';
+import {ValidationErrorCodes} from '../../src/constants';
 
 const evmChains = [
   {validate: validateETH, label: 'Ethereum'},

@@ -1,10 +1,10 @@
-import type {ValidationErrorCode} from '../src/constants';
-import type {ValidationErrorCode as RootValidationErrorCode} from '../src/index';
+import type {ValidationErrorCode} from '../../src/constants';
+import type {ValidationErrorCode as RootValidationErrorCode} from '../../src/index';
 
 import {describe, expect, expectTypeOf, it} from 'vite-plus/test';
 
-import {ValidationErrorCodes} from '../src/constants';
-import {ValidationErrorCodes as RootValidationErrorCodes} from '../src/index';
+import {ValidationErrorCodes} from '../../src/constants';
+import {ValidationErrorCodes as RootValidationErrorCodes} from '../../src/index';
 
 const expectedCodes = {
   NULL_OR_UNDEFINED: 'NULL_OR_UNDEFINED',

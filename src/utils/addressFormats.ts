@@ -6,8 +6,9 @@
  * checksum checks; it must never reject an address the validator would accept.
  *
  * Keep these predicates aligned with the validators when adding or changing an
- * address format. `tests/any.test.ts` and `addressFormats.test.ts` cover the
- * known valid formats so a drift is caught before release.
+ * address format. `tests/any/any.test.ts` and
+ * `tests/utils/addressFormats.test.ts` cover the known valid formats so a
+ * drift is caught before release.
  */
 
 const EVM_REGEX = /^0[xX][0-9a-fA-F]{40}$/;
