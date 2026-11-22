@@ -1,4 +1,4 @@
-import type {ValidationErrorCode} from '../types';
+import type {ValidationErrorCode} from '../constants';
 
 /**
  * Discriminated union returned by the omnibox router.

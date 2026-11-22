@@ -79,6 +79,7 @@ All validators except `validateAny` are available from the main entry point (`cr
 - `cryptovalid/btc` – `validateBTC`, `validateBTCBatch`
 - `cryptovalid/any` – `validateAny`, `validateAnyBatch`
 - `cryptovalid/usdt-bep20` – `validateUSDTBEP20`, `validateUSDTBEP20Batch`
+- `cryptovalid/constants` – `ValidationErrorCodes`, `ValidationErrorCode` (no validator code)
 - (other chains follow the same pattern)
 
 ### Error System
@@ -89,7 +90,7 @@ Every failure result contains a **machine‑readable `code`** and a **human‑re
 
 - `ValidationErrorCodes` — a constant object with all error codes.
 - `ValidationErrorCode` — the union type of all possible code string literals.
-- Both are exported from the main entry point.
+- Both are exported from the main entry point and from the `cryptovalid/constants` subpath.
 
 #### Internal mapping
 
@@ -247,7 +248,7 @@ Vite+ is distinct from Vite itself; it invokes Vite internally for commands like
    ```
 
 6. **Adding a New Chain** – When a new chain validator is added, you must also update the omnibox router (`src/any/routes.ts`):
-   - Add the source file at `src/chains/[chain].ts` and register it in `scripts/entries.ts` using a lowercase kebab-case name that matches the file name. The manifest is the single source of truth for build entries and generated `exports`; `constants` and `types` are reserved names.
+   - Add the source file at `src/chains/[chain].ts` and register it in `scripts/entries.ts` using a lowercase kebab-case name that matches the file name. The manifest is the single source of truth for build entries and generated `exports`; `constants` is a fixed public entry and `types` is the only reserved internal name.
    - Keep `src/chains` and `src/aliases` entry-only: every `.ts` file directly inside them must be registered (co-located `*.test.ts`/`*.spec.ts` files are ignored). Put internal helpers in `src/utils` or a subdirectory; the audit deliberately rejects `index.ts` and `.d.ts` files there.
    - Re-export the new validators and types from `src/index.ts` so the root entry stays complete. Entries listed in `ROOT_EXCLUDED_ENTRIES` (currently only `any`) are intentionally subpath-only and must not be added to the root entry.
    - Update the expected entry list in `scripts/entries.test.ts` when the public entry set changes.

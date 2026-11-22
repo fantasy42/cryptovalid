@@ -9,27 +9,32 @@
 export interface EntryManifest {
   index: string;
   any: string;
+  constants: string;
   readonly [name: string]: string;
 }
 
 const FIXED_ENTRIES = {
   index: 'src/index.ts',
   any: 'src/any/index.ts',
+  constants: 'src/constants.ts',
 } as const;
 
 /**
- * Names reserved by top-level internal modules.
+ * Names reserved by top-level internal modules that cannot back public entries.
  *
- * With `unbundle` enabled, `src/constants.ts` and `src/types.ts` emit
- * `dist/constants.*` and `dist/types.d.*`. A public entry with either name
- * would collide with those chunks and can make the generated `exports` point
- * at the wrong module or declaration.
+ * `src/types.ts` emits only a declaration (`dist/types.d.*`), so it cannot
+ * back a runtime subpath. `constants` is a fixed public entry instead; its
+ * entry output and internal chunk are the same module, so they do not collide.
  *
  * `scripts/entries.test.ts` also compares every top-level `src/*.ts` module
- * with the manifest, so a new internal module cannot silently collide with a
- * future entry name.
+ * with the manifest, so a top-level module can back an entry only when the
+ * manifest maps that entry to it.
  */
-const RESERVED_INTERNAL_NAMES = new Set(['constants', 'types']);
+const RESERVED_INTERNAL_NAMES = new Set(['types']);
+
+function isFixedEntry(name: string): name is keyof typeof FIXED_ENTRIES {
+  return Object.hasOwn(FIXED_ENTRIES, name);
+}
 
 const ENTRY_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -99,7 +104,7 @@ export function validateEntries(
     }
     seenPaths.add(loweredPath);
 
-    if (name === 'index' || name === 'any') {
+    if (isFixedEntry(name)) {
       if (value !== FIXED_ENTRIES[name]) {
         errors.push(
           `Reserved entry "${name}" must map to "${FIXED_ENTRIES[name]}", not "${value}".`
@@ -173,10 +178,12 @@ export function defineEntries<const T extends EntryManifest>(entries: T): T {
  *
  * `index` is the root entry. `any` is built and published as
  * `cryptovalid/any` but intentionally not re-exported from the root entry.
+ * `constants` is the public error-code entry and is re-exported from the root.
  */
 export const ENTRIES = defineEntries({
   index: 'src/index.ts',
   any: 'src/any/index.ts',
+  constants: 'src/constants.ts',
   bnb: 'src/chains/bnb.ts',
   btc: 'src/chains/btc.ts',
   eth: 'src/chains/eth.ts',

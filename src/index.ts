@@ -36,6 +36,7 @@ export {validateUSDTTRC20, validateUSDTTRC20Batch} from './aliases/usdt-trc20';
 export {validateUSDTBEP20, validateUSDTBEP20Batch} from './aliases/usdt-bep20';
 
 export {ValidationErrorCodes} from './constants';
+export type * from './constants';
 
 export type * from './types';
 

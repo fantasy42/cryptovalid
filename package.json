@@ -53,6 +53,16 @@
         "default": "./dist/any.cjs"
       }
     },
+    "./constants": {
+      "import": {
+        "types": "./dist/constants.d.mts",
+        "default": "./dist/constants.mjs"
+      },
+      "require": {
+        "types": "./dist/constants.d.cts",
+        "default": "./dist/constants.cjs"
+      }
+    },
     "./bnb": {
       "import": {
         "types": "./dist/bnb.d.mts",
@@ -190,11 +200,12 @@
   },
   "scripts": {
     "gen:exports": "vpx scripts/generateExports.ts",
-    "build": "vp run gen:exports && vp pack",
+    "build": "vp run gen:exports && vp pack && node scripts/checkDistTypes.mjs",
     "dev": "vp run gen:exports && vp pack --watch",
     "test": "vp test",
     "smoke": "node scripts/smokeDist.mjs",
     "check": "vp check",
+    "check:dist-types": "node scripts/checkDistTypes.mjs",
     "check:entries": "node --experimental-strip-types scripts/checkEntries.ts",
     "prepublishOnly": "vp run build",
     "prepare": "vp config"

@@ -10,6 +10,7 @@ import {defineEntries} from './entries.ts';
 const fixtureEntries = defineEntries({
   index: 'src/index.ts',
   any: 'src/any/index.ts',
+  constants: 'src/constants.ts',
   btc: 'src/chains/btc.ts',
   'usdt-erc20': 'src/aliases/usdt-erc20.ts',
 });
@@ -32,6 +33,7 @@ async function createFixture(): Promise<string> {
 
   await writeFile(path.join(rootDir, 'src/index.ts'), 'export {};\n');
   await writeFile(path.join(rootDir, 'src/any/index.ts'), 'export {};\n');
+  await writeFile(path.join(rootDir, 'src/constants.ts'), 'export {};\n');
   await writeFile(path.join(rootDir, 'src/chains/btc.ts'), 'export {};\n');
   await writeFile(
     path.join(rootDir, 'src/aliases/usdt-erc20.ts'),

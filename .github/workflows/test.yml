@@ -77,5 +77,8 @@ jobs:
       - name: Build package
         run: vp pack
 
+      - name: Check built type exports
+        run: node scripts/checkDistTypes.mjs
+
       - name: Smoke test package output
         run: node scripts/smokeDist.mjs

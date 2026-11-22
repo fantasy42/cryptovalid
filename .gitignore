@@ -2,6 +2,8 @@ node_modules
 dist
 *.log
 .DS_Store
+# Temporary directory used by scripts/checkDistTypes.mjs
+.tmp-dist-types-*
 !.vscode/
 !.vscode/settings.json
 !.vscode/extensions.json

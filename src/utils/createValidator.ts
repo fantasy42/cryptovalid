@@ -1,4 +1,5 @@
-import type {ValidationResult, ValidationErrorCode} from '../types';
+import type {ValidationErrorCode} from '../constants';
+import type {ValidationResult} from '../types';
 
 import {prevalidate} from './prevalidate';
 import {ValidationErrorCodes} from '../constants';

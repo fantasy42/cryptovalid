@@ -1,5 +1,5 @@
 import type {AnyValidationResult, AnyBatchValidationResult} from './types';
-import type {ValidationErrorCode} from '../types';
+import type {ValidationErrorCode} from '../constants';
 
 import {ROUTES} from './routes';
 import {ValidationErrorCodes} from '../constants';

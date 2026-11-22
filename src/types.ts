@@ -1,4 +1,4 @@
-import type {ValidationErrorCodes} from './constants';
+import type {ValidationErrorCode} from './constants';
 
 /**
  * Discriminated union for validation outcomes.
@@ -51,11 +51,3 @@ export type BatchValidationResult<T extends string = string> =
       index: number;
       id?: string | number;
     });
-
-/**
- * Union of all possible validation error codes.
- *
- * @see {@link ValidationErrorCodes} for the full list and descriptions.
- */
-export type ValidationErrorCode =
-  (typeof ValidationErrorCodes)[keyof typeof ValidationErrorCodes];

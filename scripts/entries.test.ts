@@ -18,11 +18,11 @@ const rootDir = path.resolve(
 const validEntries = {
   index: 'src/index.ts',
   any: 'src/any/index.ts',
+  constants: 'src/constants.ts',
   btc: 'src/chains/btc.ts',
   'usdt-erc20': 'src/aliases/usdt-erc20.ts',
 };
 
-const ROOT_NON_ENTRY_VALUE_SPECIFIERS = ['constants'] as const;
 const ROOT_NON_ENTRY_TYPE_SPECIFIERS = ['types'] as const;
 
 const invalidManifests: Array<[string, unknown]> = [
@@ -52,6 +52,7 @@ describe('ENTRIES', () => {
     expect(Object.keys(ENTRIES)).toEqual([
       'index',
       'any',
+      'constants',
       'bnb',
       'btc',
       'eth',
@@ -68,9 +69,10 @@ describe('ENTRIES', () => {
     ]);
   });
 
-  it('pins the root and router entries', () => {
+  it('pins the fixed entries', () => {
     expect(ENTRIES.index).toBe('src/index.ts');
     expect(ENTRIES.any).toBe('src/any/index.ts');
+    expect(ENTRIES.constants).toBe('src/constants.ts');
   });
 
   it('excludes only any from the root entry point', () => {
@@ -104,6 +106,16 @@ describe('validateEntries', () => {
 
     expect(validateEntries(withoutAny)).toContain(
       'Missing required entry "any".'
+    );
+  });
+
+  it('requires the constants entry', () => {
+    const withoutConstants = Object.fromEntries(
+      Object.entries(validEntries).filter(([name]) => name !== 'constants')
+    );
+
+    expect(validateEntries(withoutConstants)).toContain(
+      'Missing required entry "constants".'
     );
   });
 
@@ -162,16 +174,21 @@ describe('validateEntries', () => {
     }
   );
 
-  it.each(['constants', 'types'])(
-    'rejects reserved internal name %s',
-    (name) => {
-      expect(
-        validateEntries({...validEntries, [name]: `src/chains/${name}.ts`})
-      ).toContain(
-        `Entry name "${name}" is reserved by a top-level internal module; choose another name.`
-      );
-    }
-  );
+  it('rejects reserved internal name types', () => {
+    expect(
+      validateEntries({...validEntries, types: 'src/chains/types.ts'})
+    ).toContain(
+      'Entry name "types" is reserved by a top-level internal module; choose another name.'
+    );
+  });
+
+  it('rejects the constants entry pointing at a chain source', () => {
+    expect(
+      validateEntries({...validEntries, constants: 'src/chains/constants.ts'})
+    ).toContain(
+      'Reserved entry "constants" must map to "src/constants.ts", not "src/chains/constants.ts".'
+    );
+  });
 
   it('rejects paths outside chains and aliases', () => {
     expect(
@@ -228,7 +245,7 @@ describe('src/index.ts parity', () => {
       .map(([, entryPath]) => entrySpecifier(entryPath));
 
     // The root uses one explicit value clause and one `export type *` clause
-    // per public entry; `constants` and `types` are non-entry public modules.
+    // per public entry; `types` is the only non-entry module.
     const valueSpecifiers = clauses
       .filter((clause) => !clause.isTypeOnly)
       .map((clause) => clause.specifier);
@@ -237,7 +254,7 @@ describe('src/index.ts parity', () => {
       .map((clause) => clause.specifier);
 
     expect(uniqueSorted(valueSpecifiers)).toEqual(
-      uniqueSorted([...publicSpecifiers, ...ROOT_NON_ENTRY_VALUE_SPECIFIERS])
+      uniqueSorted(publicSpecifiers)
     );
     expect(uniqueSorted(typeSpecifiers)).toEqual(
       uniqueSorted([...publicSpecifiers, ...ROOT_NON_ENTRY_TYPE_SPECIFIERS])
@@ -273,7 +290,7 @@ describe('src/index.ts parity', () => {
 });
 
 describe('repository invariants', () => {
-  it('does not reuse a top-level source module name as an entry', async () => {
+  it('only reuses a top-level module name when the entry maps to it', async () => {
     const sourceFiles = await readdir(path.join(rootDir, 'src'), {
       withFileTypes: true,
     });
@@ -289,17 +306,19 @@ describe('repository invariants', () => {
       )
       .map((file) => path.parse(file).name);
 
-    for (const name of Object.keys(ENTRIES)) {
+    for (const [name, entryPath] of Object.entries(ENTRIES)) {
       const loweredName = name.toLowerCase();
 
       if (loweredName === 'index') {
         continue;
       }
 
-      expect(
-        topLevelNames,
-        `Entry "${name}" collides with the src/${name}.ts output`
-      ).not.toContain(loweredName);
+      if (topLevelNames.includes(loweredName)) {
+        expect(
+          entryPath,
+          `Entry "${name}" must map to src/${name}.ts when a top-level module with that name exists`
+        ).toBe(`src/${name}.ts`);
+      }
     }
   });
 });

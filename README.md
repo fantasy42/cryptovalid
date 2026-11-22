@@ -100,11 +100,16 @@ All failure results contain a machine‑readable code and a human‑readable mes
 
 ### Available Error Codes
 
-Import the codes and type:
+Import the codes and type from the dedicated subpath (the same exports are also available from the root entry):
 
 ```ts
-import { ValidationErrorCodes, type ValidationErrorCode } from 'cryptovalid';
+import {
+  ValidationErrorCodes,
+  type ValidationErrorCode,
+} from 'cryptovalid/constants';
 ```
+
+Using `cryptovalid/constants` keeps chain-only consumers from pulling in the root entry just to switch on error codes.
 
 | Code                   | Meaning                                                                      |
 |------------------------|------------------------------------------------------------------------------|
@@ -125,7 +130,8 @@ import { ValidationErrorCodes, type ValidationErrorCode } from 'cryptovalid';
 ### Usage example
 
 ```ts
-import { validateETH, ValidationErrorCodes } from 'cryptovalid';
+import { validateETH } from 'cryptovalid/eth';
+import { ValidationErrorCodes } from 'cryptovalid/constants';
 
 const result = validateETH(address);
 

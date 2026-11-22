@@ -46,3 +46,11 @@ export const ValidationErrorCodes = {
   /** An unexpected internal error occurred during validation. */
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 } as const;
+
+/**
+ * Union of all possible validation error codes.
+ *
+ * @see {@link ValidationErrorCodes} for the full list and descriptions.
+ */
+export type ValidationErrorCode =
+  (typeof ValidationErrorCodes)[keyof typeof ValidationErrorCodes];

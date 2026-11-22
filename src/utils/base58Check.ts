@@ -1,4 +1,4 @@
-import type {ValidationErrorCode} from '../types';
+import type {ValidationErrorCode} from '../constants';
 import type {BaseCodec} from './baseCodec';
 
 import {sha256} from '@noble/hashes/sha2.js';

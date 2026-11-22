@@ -1,4 +1,4 @@
-import type {ValidationErrorCode} from '../types';
+import type {ValidationErrorCode} from '../constants';
 
 import {ValidationErrorCodes} from '../constants';
 
