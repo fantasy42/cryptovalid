@@ -1,0 +1,38 @@
+# Static analysis of this repo's CI/CD definitions. Docs: https://docs.zizmor.sh/
+name: Zizmor
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zizmor:
+    name: Workflow security analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Annotations, not SARIF: SARIF always exits 0, so it can never fail the
+      # job. `pedantic` also reports maintainability issues, matching the strict
+      # `vp check --deny-warnings` bar.
+      - name: Run zizmor
+        uses: zizmorcore/zizmor-action@1b4550e929643b8b26a62303c6bd64814271a4f1 # v0.9.2
+        with:
+          persona: pedantic
+          annotations: true
+          advanced-security: false
+          strict-collection: true

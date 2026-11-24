@@ -32,12 +32,13 @@ concurrency:
 
 jobs:
   open-release-pr:
+    name: Open release PR
     if: github.event_name == 'workflow_dispatch' && github.ref_name == 'master'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
-      contents: write
-      pull-requests: write
+      contents: write # push the release branch
+      pull-requests: write # open the release PR
 
     steps:
       - name: Checkout repository
@@ -115,15 +116,16 @@ jobs:
         shell: bash
         run: |
           branch="release/v$VERSION"
-          git remote set-url origin "https://x-access-token:${RELEASE_PAT}@github.com/${GITHUB_REPOSITORY}.git"
+          # Authenticate per command so the PAT is never written to `.git/config`.
+          auth_url="https://x-access-token:${RELEASE_PAT}@github.com/${GITHUB_REPOSITORY}.git"
 
-          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+          if git ls-remote --exit-code --heads "$auth_url" "$branch" >/dev/null 2>&1; then
             echo "Branch $branch already exists. Please delete it or choose a different version."
             exit 1
           fi
 
           git switch -c "$branch"
-          git push --set-upstream origin "$branch"
+          git push "$auth_url" "$branch"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
       - name: Create release pull request
@@ -247,7 +249,9 @@ jobs:
           echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
 
       - name: Smoke test packed package in a clean consumer
-        run: node scripts/runPackageSmoke.mjs "${{ steps.pack.outputs.tarball }}"
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: node scripts/runPackageSmoke.mjs "$TARBALL"
 
       - name: Upload package artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -269,8 +273,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 40
     permissions:
-      contents: write
-      id-token: write
+      contents: write # push the tag and create the GitHub release
+      id-token: write # npm trusted publishing (OIDC) and provenance
 
     steps:
       - name: Checkout release commit
@@ -279,6 +283,9 @@ jobs:
           ref: ${{ needs.gate.outputs.commit }}
           fetch-depth: 0
           fetch-tags: true
+          # Required by "Ensure release tag", which pushes with this token.
+          # Every other checkout in this file sets it to false.
+          persist-credentials: true
 
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0

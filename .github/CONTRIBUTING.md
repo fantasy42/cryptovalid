@@ -54,6 +54,16 @@ Tests for shipped code live under `tests/`, grouped by source domain: `tests/cha
 
 Run one file with `vp test tests/chains/btc.test.ts`.
 
+### Workflow Security
+
+The `Zizmor` workflow lints the CI/CD definitions with [zizmor](https://docs.zizmor.sh/) and fails on any finding. Run it after editing anything under `.github/`, using [uvx](https://docs.astral.sh/uv/) or pipx:
+
+```bash
+uvx zizmor --persona=pedantic .    # or: pipx run zizmor --persona=pedantic .
+```
+
+The rules it enforces are summarized in invariant 11 of [AGENTS.md](../AGENTS.md).
+
 ### Build and Package Checks
 
 The full build regenerates `package.json` exports, packs `dist`, and verifies the built declarations:

@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   test:
+    name: Checks, tests, and package
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -60,8 +61,11 @@ jobs:
           test -n "$tarball"
           echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
 
+      # Passed via env, not interpolated, so the path is never parsed as shell.
       - name: Smoke test packed package in a clean consumer
-        run: node scripts/runPackageSmoke.mjs "${{ steps.pack.outputs.tarball }}"
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: node scripts/runPackageSmoke.mjs "$TARBALL"
 
       - name: Upload package artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

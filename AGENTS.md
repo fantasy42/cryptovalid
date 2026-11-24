@@ -54,6 +54,7 @@ scripts/*.test.ts     repo-tooling tests, kept beside their source
 8. The root `tsconfig.json` is a file-less solution (`files: []`) with shared compiler options. Do not populate `files` or add `include`. `tsconfig.lib.json` covers shipped source with no Node or DOM globals and excludes tests as a guard; `tsconfig.node.json` adds Node types for `tests/`, `scripts/`, and `vite.config.ts`. Vitest discovery is scoped in `vite.config.ts` to `tests/**` and `scripts/**`. The build uses `tsconfig.lib.json`.
 9. Checksum code (Base58Check, Bech32, EIP-55, CRC16) is security-critical. Changes require expanded reference vectors, a clear explanation of why validation is not weakened, and maintainer review. Adding an address type is compatible; rejecting previously valid addresses requires a major version.
 10. Do not add runtime dependencies casually. The only current runtime dependency is `@noble/hashes`.
+11. `.github/` must stay clean under `zizmor --persona=pedantic` (the `Zizmor` workflow fails on any finding): hash-pin every `uses:` with a `# vX.Y.Z` comment, name every job, comment every permission except `contents: read`, keep `persist-credentials: false` unless the job pushes, and pass `${{ ... }}` to `run:` through `env:`.
 
 ## Adding a Chain
 
@@ -80,6 +81,8 @@ scripts/*.test.ts     repo-tooling tests, kept beside their source
 ## CI and Release
 
 CI runs `vp check --deny-warnings`, `vp test`, `vp run build`, `vp run smoke`, and a packed-package consumer smoke. `setup-vp` already runs `vp install`; do not add a second install step.
+
+`.github/workflows/zizmor.yml` lints `.github/` with [zizmor](https://docs.zizmor.sh/) in `pedantic` mode and fails on any finding. It uses annotations rather than SARIF because SARIF always exits `0`. Install zizmor from PyPI or a release binary, then run `zizmor --persona=pedantic .`.
 
 Do not bump versions or publish manually. Run the `Release` workflow on `master`, choose `patch`/`minor`/`major`, and merge the release PR. The merge triggers the publish job; re-run the failed job if publishing fails. Details live in `.github/workflows/release.yml`.
 
